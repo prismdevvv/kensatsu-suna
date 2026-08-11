@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gérance — Kensatsu de Sunagakure</title>
+  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="admin.css?v=1">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="sand-overlay"></div>
+  <button id="theme-toggle" class="theme-toggle" title="Basculer clair / sombre"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A7.5 7.5 0 1 1 10.5 4 6 6 0 0 0 20 13.5Z"/></svg></button>
+
+  <!-- LOGIN -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-container">
+      <div class="kensatsu-emblem"><svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 5.7v5.1c0 4.2 3 7.3 7 8.7 4-1.4 7-4.5 7-8.7V5.7L12 3Z"/></svg></div>
+      <h1>Direction de la Kensatsu</h1>
+      <p class="subtitle">Réservé à la gérance</p>
+      <form id="login-form" class="auth-form">
+        <div class="field"><label>Nom</label><input type="text" id="login-nom" maxlength="60" autocomplete="off" required></div>
+        <div class="field"><label>Prénom</label><input type="text" id="login-prenom" maxlength="60" autocomplete="off" required></div>
+        <div class="field"><label>Sceau Secret</label><input type="password" id="login-sceau" maxlength="100" autocomplete="current-password" required></div>
+        <button type="submit" class="btn-primary">Accéder à la Direction</button>
+        <p id="login-error" class="error"></p>
+      </form>
+      <a href="index.html" class="back-link">← Retour au registre</a>
+    </div>
+  </div>
+
+  <!-- ADMIN DASHBOARD -->
+  <div id="admin-screen" class="screen hidden">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+          <span class="brand-ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 5.7v5.1c0 4.2 3 7.3 7 8.7 4-1.4 7-4.5 7-8.7V5.7L12 3Z"/></svg></span>
+          <span class="brand-txt">Direction<small>Kensatsu · Sunagakure</small></span>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="snav active" data-group="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/></svg> Statistiques</button>
+          <button class="snav" data-group="agents"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M17.5 19a5.5 5.5 0 0 0-3-4.9"/></svg> Agents</button>
+        </nav>
+        <div class="sidebar-foot">
+          <div class="sidebar-user"><span id="user-name"></span><span id="user-role-badge" class="role-badge"></span></div>
+          <a href="index.html" class="sidebar-link"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V19h12V9.5"/></svg> Retour au registre</a>
+          <button id="logout-btn" class="sidebar-link"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/><path d="M16 17l5-5-5-5M21 12H9"/></svg> Déconnexion</button>
+        </div>
+      </aside>
+
+      <div class="admin-content">
+        <main>
+          <!-- GROUPE STATISTIQUES -->
+          <div class="group-panel active" data-group="stats">
+            <section class="panel-section">
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/></svg> Statistiques Générales</h3>
+              <div class="stat-grid">
+                <div class="stat-card"><div class="stat-value" id="stat-total-infractions">0</div><div class="stat-label">Infractions enregistrées</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-collecte">0 ₽</div><div class="stat-label">Amendes collectées</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-impaye">0 ₽</div><div class="stat-label">Amendes impayées</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-agents">0</div><div class="stat-label">Agents actifs</div></div>
+              </div>
+              <h3 style="margin-top:6px;">Amendes par agent</h3>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Agent</th><th>Rôle</th><th>Infractions émises</th><th>Total collecté</th></tr></thead>
+                  <tbody id="stats-agents-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <!-- GROUPE AGENTS -->
+          <div class="group-panel" data-group="agents">
+            <section class="panel-section">
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/></svg> Gestion des Agents</h3>
+              <p class="info-text">Attribue les rôles (agent / procureur / gérant) et active ou désactive les comptes.</p>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Agent</th><th>Rôle actuel</th><th>Attribuer</th><th>Statut</th></tr></thead>
+                  <tbody id="agents-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script src="common.js?v=1"></script>
+  <script src="admin.js?v=1"></script>
+</body>
+</html>
