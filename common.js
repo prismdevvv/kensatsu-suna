@@ -58,6 +58,16 @@ async function supaDelete(table, query) {
   if (!res.ok) throw await supaError(res);
 }
 
+async function supaUpsert(table, data, query = '') {
+  const res = await fetch(`${SUPABASE_URL}/${table}${query}`, {
+    method: 'POST',
+    headers: { ...SUPA_HEADERS, 'Prefer': 'return=representation,resolution=merge-duplicates' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw await supaError(res);
+  return res.json();
+}
+
 async function supaRpc(fn, args = {}) {
   const res = await fetch(`${SUPABASE_URL}/rpc/${fn}`, {
     method: 'POST', headers: SUPA_HEADERS, body: JSON.stringify(args)
