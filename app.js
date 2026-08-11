@@ -17,6 +17,19 @@ const RANK_LABELS = {
 };
 function rankLabel(v) { return RANK_LABELS[v] || v || 'rang inconnu'; }
 
+// --- Grades des agents de la kensatsu ---
+const AGENT_ROLE_LABELS = {
+  gardien_provisoire: 'Gardien provisoire',
+  gardien_confirme: 'Gardien confirmé',
+  sergent: 'Sergent',
+  lieutenant: 'Lieutenant',
+  capitaine: 'Capitaine',
+  commandant: 'Commandant',
+  co_gerant: 'Co-gérant',
+  gerant: 'Gérant'
+};
+const ADMIN_ROLES = ['co_gerant', 'gerant'];
+
 let currentUser = null;
 let clockInterval = null;
 let articlesCache = [];
@@ -62,7 +75,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     if (existing.length > 0) { errEl.textContent = 'Cet agent est déjà enregistré.'; return; }
 
     const hashed = await hashSceau(sceau);
-    await supaPost('agents', { nom, prenom, sceau: hashed, role: 'agent' }, true);
+    await supaPost('agents', { nom, prenom, sceau: hashed, role: 'gardien_provisoire' }, true);
     sucEl.textContent = 'Enregistrement réussi ! Vous pouvez maintenant vous identifier.';
     document.getElementById('register-form').reset();
   } catch (err) {
@@ -120,9 +133,9 @@ function showDashboard() {
   document.getElementById('dashboard-screen').classList.remove('hidden');
   document.getElementById('user-name').textContent = `${currentUser.prenom} ${currentUser.nom}`;
   const roleBadge = document.getElementById('user-role');
-  roleBadge.textContent = currentUser.role;
+  roleBadge.textContent = AGENT_ROLE_LABELS[currentUser.role] || currentUser.role;
   roleBadge.className = 'role-badge ' + currentUser.role;
-  document.getElementById('gerance-link').style.display = currentUser.role === 'gerant' ? 'inline-flex' : 'none';
+  document.getElementById('gerance-link').style.display = ADMIN_ROLES.includes(currentUser.role) ? 'inline-flex' : 'none';
   updateClock();
   clockInterval = setInterval(updateClock, 1000);
   showGroup('casiers');
@@ -137,6 +150,7 @@ function showGroup(name) {
   document.querySelectorAll('.snav').forEach(b => b.classList.toggle('active', b.dataset.group === name));
   if (name === 'code-penal') renderCodePenalTables();
   if (name === 'historique') loadHistorique();
+  if (name === 'registre') loadRegistreCasiers();
 }
 document.querySelectorAll('.snav').forEach(b => {
   b.addEventListener('click', () => showGroup(b.dataset.group));
@@ -261,6 +275,38 @@ function renderNinjaResults(chars, isBrowse) {
   }
 }
 
+// ── Registre des casiers déjà enregistrés ──
+async function loadRegistreCasiers() {
+  const ul = document.getElementById('registre-list');
+  ul.innerHTML = '<li class="list-empty">Chargement...</li>';
+  try {
+    const rows = await supaGet('infractions', 'select=ninja_char_key,ninja_nom,montant,paye,created_at&order=created_at.desc&limit=500');
+    const map = {};
+    rows.forEach(r => {
+      if (!map[r.ninja_char_key]) map[r.ninja_char_key] = { nom: r.ninja_nom, count: 0, impaye: 0, derniere: r.created_at };
+      map[r.ninja_char_key].count += 1;
+      if (!r.paye) map[r.ninja_char_key].impaye += r.montant;
+    });
+    const list = Object.entries(map).sort((a, b) => new Date(b[1].derniere) - new Date(a[1].derniere));
+    ul.innerHTML = '';
+    if (list.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucun casier enregistré pour le moment</li>';
+      return;
+    }
+    list.forEach(([key, info]) => {
+      const li = document.createElement('li');
+      const date = new Date(info.derniere).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      li.className = 'search-result';
+      li.innerHTML = `<strong>${escapeHtml(info.nom)}</strong> <span class="infraction-meta">${info.count} infraction${info.count > 1 ? 's' : ''} · dernière le ${date}${info.impaye > 0 ? ' · <span class="tag tag-impaye">' + formatRyos(info.impaye) + ' impayé</span>' : ''}</span>`;
+      li.addEventListener('click', () => openCasier(key, info.nom, `${info.count} infraction${info.count > 1 ? 's' : ''} au casier`));
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    ul.innerHTML = '<li class="list-empty">Erreur de chargement du registre</li>';
+  }
+}
+
 // ── Casier judiciaire (modal) ──
 async function openCasier(key, nom, meta) {
   selectedNinjaKey = key;
@@ -275,11 +321,83 @@ async function openCasier(key, nom, meta) {
   document.getElementById('montant-total').classList.add('hidden');
   document.getElementById('infraction-status').textContent = '';
   document.getElementById('casier-modal-overlay').classList.remove('hidden');
-  await loadInfractionsList();
+  await Promise.all([loadInfractionsList(), loadCasierPhoto()]);
 }
 
 document.getElementById('casier-modal-close').addEventListener('click', () => {
   document.getElementById('casier-modal-overlay').classList.add('hidden');
+});
+
+// ── Photo de la fiche (collée au Ctrl+V) ──
+async function loadCasierPhoto() {
+  const img = document.getElementById('casier-photo-img');
+  const hint = document.getElementById('casier-photo-hint');
+  img.classList.add('hidden');
+  hint.classList.remove('hidden');
+  hint.textContent = 'Colle une image (Ctrl+V)';
+  try {
+    const rows = await supaGet('casier_photos', `ninja_char_key=eq.${encodeURIComponent(selectedNinjaKey)}&select=photo_data`);
+    if (rows.length > 0) {
+      img.src = rows[0].photo_data;
+      img.classList.remove('hidden');
+      hint.classList.add('hidden');
+    }
+  } catch (e) { console.error(e); }
+}
+
+function resizeImageToDataUrl(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const ratio = Math.min(maxSize / width, maxSize / height, 1);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+window.addEventListener('paste', async (e) => {
+  const overlay = document.getElementById('casier-modal-overlay');
+  if (!overlay || overlay.classList.contains('hidden') || !selectedNinjaKey) return;
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      const hint = document.getElementById('casier-photo-hint');
+      hint.textContent = 'Enregistrement...';
+      try {
+        const dataUrl = await resizeImageToDataUrl(file, 260);
+        await supaUpsert('casier_photos', {
+          ninja_char_key: selectedNinjaKey,
+          photo_data: dataUrl,
+          updated_by: currentUser.id,
+          updated_at: new Date().toISOString()
+        }, '?on_conflict=ninja_char_key');
+        const img = document.getElementById('casier-photo-img');
+        img.src = dataUrl;
+        img.classList.remove('hidden');
+        hint.classList.add('hidden');
+      } catch (err) {
+        console.error(err);
+        hint.textContent = "Erreur, réessaie.";
+      }
+      break;
+    }
+  }
 });
 
 async function loadInfractionsList() {
@@ -320,6 +438,7 @@ function renderInfractionItem(r) {
       <div style="text-align:right;flex-shrink:0;">
         <div class="infraction-montant">${formatRyos(r.montant)}</div>
         <button class="btn-toggle-paye ${r.paye ? '' : 'impaye'}" data-id="${r.id}" data-paye="${r.paye}">${r.paye ? 'Marquer impayé' : 'Marquer payé'}</button>
+        <button class="btn-delete-inf" data-id="${r.id}" title="Supprimer cette infraction">Supprimer</button>
       </div>
     </div>`;
   li.querySelector('.btn-toggle-paye').addEventListener('click', async (ev) => {
@@ -330,6 +449,16 @@ function renderInfractionItem(r) {
       await supaPatch('infractions', `id=eq.${id}`, { paye: !nowPaye, paid_at: !nowPaye ? new Date().toISOString() : null }, true);
       await loadInfractionsList();
       loadHistorique();
+    } catch (e) { console.error(e); }
+  });
+  li.querySelector('.btn-delete-inf').addEventListener('click', async (ev) => {
+    const id = ev.target.dataset.id;
+    if (!confirm('Supprimer définitivement cette infraction du casier ?')) return;
+    try {
+      await supaDelete('infractions', `id=eq.${id}`);
+      await loadInfractionsList();
+      loadHistorique();
+      loadRegistreCasiers();
     } catch (e) { console.error(e); }
   });
   return li;
@@ -453,6 +582,7 @@ document.getElementById('infraction-form').addEventListener('submit', async (e) 
     recidiveNiveauCourant = 0;
     await loadInfractionsList();
     loadHistorique();
+    loadRegistreCasiers();
   } catch (err) {
     statusEl.textContent = "Erreur lors de l'enregistrement.";
     console.error(err);

@@ -6,13 +6,8 @@ table.data-table tr:hover td { background: rgba(53,65,77,.04); }
 body.dark table.data-table th, body.dark table.data-table td { border-bottom-color: #33424f; }
 body.dark table.data-table tr:hover td { background: rgba(255,255,255,.03); }
 
-.btn-role { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--paper-mid); background: transparent; font-family: inherit; font-size: 12px; cursor: pointer; margin-right: 4px; transition: .2s; color: var(--text); }
-.btn-role:hover:not(:disabled) { background: rgba(53,65,77,.08); }
-.btn-role:disabled { opacity: .4; cursor: default; font-weight: 700; }
-.btn-role.gerant { border-color: var(--red-seal); }
-.btn-role.procureur { border-color: var(--gold); }
-.btn-role.agent { border-color: #4b7ea8; }
-body.dark .btn-role { border-color: #33424f; color: #e6ebef; }
+.role-select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--paper-mid); background: var(--cream); font-family: inherit; font-size: 12px; color: var(--text); }
+body.dark .role-select { border-color: #33424f; background: #10161c; color: #e6ebef; }
 
 .btn-toggle-actif { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--green); background: transparent; color: var(--green); font-family: inherit; font-size: 12px; cursor: pointer; transition: .2s; }
 .btn-toggle-actif.inactif { border-color: var(--red-seal); color: var(--red-seal); }

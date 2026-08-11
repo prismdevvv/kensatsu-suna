@@ -16,12 +16,23 @@ dans l'ordre :
 3. `db_export/02_rls_et_rpc.sql` — active les RLS + la fonction de
    connexion `verifier_sceau_agent` (à exécuter en dernier, une fois
    les données en place)
+4. `db_export/04_fix_grants.sql` — si tu as une erreur "permission
+   denied for table ..." au premier essai, exécute ce correctif (droits
+   de base au rôle `anon`, en plus des policies RLS)
+5. `db_export/05_migration_grades_et_photos.sql` — uniquement si tu as
+   déployé une version antérieure du site (ancien système
+   agent/procureur/gérant) : bascule vers la hiérarchie de grades
+   complète et ajoute la table des photos de casier
 
-## 2. Créer le premier compte "gérant"
+## 2. Grades et premier compte "gérant"
 
-Le site ne permet de s'inscrire qu'avec le rôle `agent` par défaut.
-Pour accéder à la page `admin.html` (gérance), inscris-toi d'abord
-normalement sur `index.html`, puis exécute dans l'éditeur SQL :
+Les agents ont un grade parmi : `gardien_provisoire` (par défaut à
+l'inscription), `gardien_confirme`, `sergent`, `lieutenant`,
+`capitaine`, `commandant`, `co_gerant`, `gerant`. Seuls `co_gerant` et
+`gerant` ont accès à `admin.html`.
+
+Pour accéder à la gérance, inscris-toi d'abord normalement sur
+`index.html`, puis exécute dans l'éditeur SQL :
 
 ```sql
 update agents set role = 'gerant' where nom = 'TonNom' and prenom = 'TonPrenom';

@@ -15,6 +15,7 @@ alter table agents               enable row level security;
 alter table articles_code_penal  enable row level security;
 alter table infractions          enable row level security;
 alter table config               enable row level security;
+alter table casier_photos        enable row level security;
 
 -- agents : anon peut lire/écrire (nécessaire pour inscription et
 -- gestion par la gérance), mais jamais la colonne sceau.
@@ -41,11 +42,14 @@ create policy "anon_all_infractions" on infractions for all to anon using (true)
 -- rester cohérent avec le reste du modèle).
 create policy "anon_all_config" on config for all to anon using (true) with check (true);
 
+-- casier_photos : anon peut tout faire (photo collée par les agents).
+create policy "anon_all_casier_photos" on casier_photos for all to anon using (true) with check (true);
+
 -- --- Fonction de connexion : compare le sceau côté serveur et ne
 -- renvoie jamais sa valeur.
 create or replace function verifier_sceau_agent(p_nom text, p_prenom text, p_sceau_hash text)
 returns table (
-  id uuid, nom text, prenom text, role text, grade text,
+  id uuid, nom text, prenom text, role text,
   actif boolean, created_at timestamptz
 )
 language sql
@@ -53,7 +57,7 @@ security definer
 set search_path = public
 stable
 as $$
-  select a.id, a.nom, a.prenom, a.role, a.grade, a.actif, a.created_at
+  select a.id, a.nom, a.prenom, a.role, a.actif, a.created_at
   from agents a
   where a.nom = p_nom and a.prenom = p_prenom and a.sceau = p_sceau_hash
   limit 1;

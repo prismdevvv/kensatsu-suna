@@ -4,7 +4,18 @@
 // =====================================================================
 
 const SESSION_KEY = 'kensatsu_session';
-const ROLE_LABELS = { gerant: 'Gérant', procureur: 'Procureur', agent: 'Agent' };
+const ROLE_ORDER = ['gardien_provisoire', 'gardien_confirme', 'sergent', 'lieutenant', 'capitaine', 'commandant', 'co_gerant', 'gerant'];
+const ROLE_LABELS = {
+  gardien_provisoire: 'Gardien provisoire',
+  gardien_confirme: 'Gardien confirmé',
+  sergent: 'Sergent',
+  lieutenant: 'Lieutenant',
+  capitaine: 'Capitaine',
+  commandant: 'Commandant',
+  co_gerant: 'Co-gérant',
+  gerant: 'Gérant'
+};
+const ADMIN_ROLES = ['co_gerant', 'gerant'];
 
 let currentUser = null;
 
@@ -34,8 +45,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       errEl.textContent = 'Identité ou sceau incorrect.';
       return;
     }
-    if (users[0].role !== 'gerant') {
-      errEl.textContent = "Accès réservé à la gérance.";
+    if (!ADMIN_ROLES.includes(users[0].role)) {
+      errEl.textContent = "Accès réservé à la gérance (co-gérant / gérant).";
       return;
     }
     loginThrottle.registerSuccess();
@@ -78,7 +89,7 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 
 (function restoreSession() {
   const saved = loadSession(SESSION_KEY);
-  if (saved && saved.role === 'gerant') { currentUser = saved; showAdmin(); }
+  if (saved && ADMIN_ROLES.includes(saved.role)) { currentUser = saved; showAdmin(); }
 })();
 
 // --- Statistiques ---
@@ -121,24 +132,24 @@ async function loadStats() {
 // --- Gestion des agents ---
 async function loadAgents() {
   try {
-    const agentsList = await supaGet('agents', 'select=id,nom,prenom,role,grade,actif&order=nom.asc,prenom.asc');
+    const agentsList = await supaGet('agents', 'select=id,nom,prenom,role,actif&order=nom.asc,prenom.asc');
     const tbody = document.getElementById('agents-body');
     tbody.innerHTML = '';
     agentsList.forEach(a => {
       const tr = document.createElement('tr');
-      const roleBtn = (r) => `<button class="btn-role ${r}" data-id="${a.id}" data-role="${r}"${a.role === r ? ' disabled' : ''}>${ROLE_LABELS[r]}</button>`;
+      const options = ROLE_ORDER.map(r => `<option value="${r}"${a.role === r ? ' selected' : ''}>${ROLE_LABELS[r]}</option>`).join('');
       tr.innerHTML = `
         <td>${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</td>
         <td><span class="role-badge ${a.role}">${ROLE_LABELS[a.role] || a.role}</span></td>
-        <td>${roleBtn('agent') + roleBtn('procureur') + roleBtn('gerant')}</td>
+        <td><select class="role-select" data-id="${a.id}">${options}</select></td>
         <td><button class="btn-toggle-actif ${a.actif ? '' : 'inactif'}" data-id="${a.id}" data-actif="${a.actif}">${a.actif ? 'Actif' : 'Désactivé'}</button></td>`;
       tbody.appendChild(tr);
     });
 
-    tbody.querySelectorAll('.btn-role').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.id;
-        const role = btn.dataset.role;
+    tbody.querySelectorAll('.role-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const id = sel.dataset.id;
+        const role = sel.value;
         try {
           await supaPatch('agents', `id=eq.${id}`, { role }, true);
           if (currentUser && id === currentUser.id) {

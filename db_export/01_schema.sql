@@ -10,11 +10,21 @@ create table agents (
   nom         text not null check (char_length(nom) between 1 and 60),
   prenom      text not null check (char_length(prenom) between 1 and 60),
   sceau       text not null,
-  role        text not null default 'agent' check (role in ('agent','procureur','gerant')),
-  grade       text check (grade in ('recrue','agent','inspecteur','capitaine','commandant')),
+  role        text not null default 'gardien_provisoire' check (role in (
+                'gardien_provisoire','gardien_confirme','sergent','lieutenant',
+                'capitaine','commandant','co_gerant','gerant'
+              )),
   actif       boolean not null default true,
   created_at  timestamptz not null default now(),
   unique (nom, prenom)
+);
+
+-- Photo (mugshot) collée par Ctrl+V sur la fiche d'un ninja.
+create table casier_photos (
+  ninja_char_key text primary key,
+  photo_data     text not null,
+  updated_by     uuid references agents(id) on delete set null,
+  updated_at     timestamptz not null default now()
 );
 
 -- Le code pénal : une ligne par article (rempli par 03_seed_articles.sql).
