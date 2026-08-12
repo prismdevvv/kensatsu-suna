@@ -143,7 +143,9 @@ function showDashboard() {
   document.getElementById('dossiers-nav').style.display = (hasSpecialisation('enquete') || ADMIN_ROLES.includes(currentUser.role)) ? 'inline-flex' : 'none';
   updateClock();
   clockInterval = setInterval(updateClock, 1000);
-  showGroup('casiers');
+  showGroup('service');
+  checkExistingPoste();
+  loadServiceList();
   loadNinjaFilters();
   loadArticlesCache();
   loadHistorique();
@@ -157,12 +159,15 @@ function showGroup(name) {
   if (name === 'historique') loadHistorique();
   if (name === 'registre') loadRegistreCasiers();
   if (name === 'dossiers') loadDossiers();
+  if (name === 'service') loadServiceList();
+  if (name === 'plaintes') loadPlaintes();
 }
 document.querySelectorAll('.snav').forEach(b => {
   b.addEventListener('click', () => showGroup(b.dataset.group));
 });
 
-document.getElementById('logout-btn').addEventListener('click', () => {
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  if (enPoste) await quitterPoste();
   currentUser = null;
   clearSession(SESSION_KEY);
   clearInterval(clockInterval);
@@ -170,6 +175,180 @@ document.getElementById('logout-btn').addEventListener('click', () => {
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('login-form').reset();
 });
+
+// ── Prise de service ──
+let enPoste = false;
+let posteId = null;
+
+async function checkExistingPoste() {
+  try {
+    const rows = await supaGet('postes', `agent_id=eq.${currentUser.id}&actif=eq.true`);
+    if (rows.length > 0) {
+      enPoste = true;
+      posteId = rows[0].id;
+    } else {
+      enPoste = false;
+      posteId = null;
+    }
+    updatePosteUI();
+  } catch (e) { console.error(e); }
+}
+
+function updatePosteUI() {
+  const btn = document.getElementById('btn-service');
+  const badge = document.getElementById('service-badge');
+  if (enPoste) {
+    btn.textContent = 'Quitter son service';
+    btn.classList.add('en-poste');
+    badge.textContent = 'En service';
+    badge.classList.add('actif');
+  } else {
+    btn.textContent = 'Prendre son service';
+    btn.classList.remove('en-poste');
+    badge.textContent = 'Hors service';
+    badge.classList.remove('actif');
+  }
+}
+
+document.getElementById('btn-service').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  try {
+    if (enPoste) await quitterPoste();
+    else await prendrePoste();
+  } finally {
+    e.target.disabled = false;
+  }
+});
+
+async function prendrePoste() {
+  try {
+    const result = await supaPost('postes', { agent_id: currentUser.id, debut: new Date().toISOString(), actif: true });
+    posteId = result[0].id;
+    enPoste = true;
+    updatePosteUI();
+    loadServiceList();
+  } catch (e) { console.error(e); }
+}
+
+async function quitterPoste() {
+  if (!posteId) return;
+  try {
+    await supaPatch('postes', `id=eq.${posteId}`, { actif: false, fin: new Date().toISOString() }, true);
+    enPoste = false;
+    posteId = null;
+    updatePosteUI();
+    loadServiceList();
+  } catch (e) { console.error(e); }
+}
+
+async function loadServiceList() {
+  const ul = document.getElementById('service-list');
+  if (!ul) return;
+  ul.innerHTML = '<li class="list-empty">Chargement...</li>';
+  try {
+    const rows = await supaGet('postes', 'actif=eq.true&select=id,debut,agents(nom,prenom)&order=debut.asc');
+    ul.innerHTML = '';
+    if (rows.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucun agent en service actuellement</li>';
+      return;
+    }
+    rows.forEach(p => {
+      const li = document.createElement('li');
+      const heure = new Date(p.debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const nom = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
+      li.textContent = `${nom} — en service depuis ${heure}`;
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    ul.innerHTML = '<li class="list-empty">Erreur de chargement</li>';
+  }
+}
+
+// ── Plaintes ──
+const PLAINTE_STATUT_LABELS = { nouvelle: 'Nouvelle', en_cours: 'En cours', traitee: 'Traitée', classee: 'Classée' };
+
+document.getElementById('plainte-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const plaignant = document.getElementById('plainte-plaignant').value.trim();
+  const motif = document.getElementById('plainte-motif').value.trim();
+  if (!plaignant || !motif) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    await supaPost('plaintes', {
+      plaignant_nom: plaignant,
+      mis_en_cause_nom: document.getElementById('plainte-miseencause').value.trim() || null,
+      motif,
+      created_by: currentUser.id
+    }, true);
+    document.getElementById('plainte-form').reset();
+    loadPlaintes();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+document.getElementById('plainte-statut-filtre').addEventListener('change', () => loadPlaintes());
+
+async function loadPlaintes() {
+  const ul = document.getElementById('plaintes-list');
+  if (!ul) return;
+  ul.innerHTML = '<li class="list-empty">Chargement...</li>';
+  try {
+    const statut = document.getElementById('plainte-statut-filtre').value;
+    let query = 'select=*,agents(nom,prenom)&order=created_at.desc';
+    if (statut) query += `&statut=eq.${statut}`;
+    const rows = await supaGet('plaintes', query);
+    ul.innerHTML = '';
+    if (rows.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucune plainte enregistrée</li>';
+      return;
+    }
+    rows.forEach(p => {
+      const li = document.createElement('li');
+      const date = new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const auteur = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
+      const statutOptions = Object.entries(PLAINTE_STATUT_LABELS)
+        .map(([v, l]) => `<option value="${v}"${p.statut === v ? ' selected' : ''}>${l}</option>`).join('');
+      li.innerHTML = `
+        <div class="infraction-item">
+          <div class="infraction-left">
+            <div class="infraction-titre">${escapeHtml(p.plaignant_nom)}${p.mis_en_cause_nom ? ' contre ' + escapeHtml(p.mis_en_cause_nom) : ''}</div>
+            <div class="infraction-meta">${date} · reçue par ${escapeHtml(auteur)}</div>
+            <div class="infraction-meta">${escapeHtml(p.motif)}</div>
+            <div class="infraction-badges"><span class="tag plainte-statut-tag ${p.statut}">${PLAINTE_STATUT_LABELS[p.statut]}</span></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <select class="plainte-statut-select" data-id="${p.id}">${statutOptions}</select>
+            ${ADMIN_ROLES.includes(currentUser.role) ? `<button class="btn-delete-inf" data-id="${p.id}">Supprimer</button>` : ''}
+          </div>
+        </div>`;
+      li.querySelector('.plainte-statut-select').addEventListener('change', async (ev) => {
+        try {
+          await supaPatch('plaintes', `id=eq.${p.id}`, { statut: ev.target.value, updated_at: new Date().toISOString() }, true);
+          loadPlaintes();
+        } catch (err) { console.error(err); }
+      });
+      const delBtn = li.querySelector('.btn-delete-inf');
+      if (delBtn) {
+        delBtn.addEventListener('click', async () => {
+          if (!confirm('Supprimer définitivement cette plainte ?')) return;
+          try {
+            await supaDelete('plaintes', `id=eq.${p.id}`);
+            loadPlaintes();
+          } catch (err) { console.error(err); }
+        });
+      }
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    ul.innerHTML = '<li class="list-empty">Erreur de chargement des plaintes</li>';
+  }
+}
 
 // --- Restauration de session ---
 (function restoreSession() {
