@@ -145,23 +145,15 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 // --- Statistiques ---
 async function loadStats() {
   try {
-    const infractions = await supaGet('infractions', 'select=id,montant,paye,agent_id,agents(nom,prenom,role)');
+    const infractions = await supaGet('infractions', 'select=id,ninja_char_key');
     const agentsList = await supaGet('agents', 'select=id&actif=eq.true');
 
-    const totalCollecte = infractions.filter(i => i.paye).reduce((s, i) => s + i.montant, 0);
-    const totalImpaye = infractions.filter(i => !i.paye).reduce((s, i) => s + i.montant, 0);
-
     document.getElementById('stat-total-infractions').textContent = infractions.length;
-    document.getElementById('stat-total-collecte').textContent = formatRyos(totalCollecte);
-    document.getElementById('stat-total-impaye').textContent = formatRyos(totalImpaye);
     document.getElementById('stat-total-agents').textContent = agentsList.length;
 
     const casiersUniques = new Set();
-    const infractionsCasiers = await supaGet('infractions', 'select=ninja_char_key');
-    infractionsCasiers.forEach(i => casiersUniques.add(i.ninja_char_key));
+    infractions.forEach(i => casiersUniques.add(i.ninja_char_key));
     document.getElementById('stat-total-casiers').textContent = casiersUniques.size;
-    document.getElementById('stat-moyenne-amende').textContent = infractions.length
-      ? formatRyos(infractions.reduce((s, i) => s + i.montant, 0) / infractions.length) : '0 ₽';
 
     try {
       const dossiers = await supaGet('dossiers_enquete', 'select=id');
@@ -177,27 +169,6 @@ async function loadStats() {
       const enService = await supaGet('postes', 'actif=eq.true&select=id');
       document.getElementById('stat-en-service').textContent = enService.length;
     } catch (e) { document.getElementById('stat-en-service').textContent = '—'; }
-
-    const parAgent = {};
-    infractions.forEach(i => {
-      const key = i.agent_id || 'inconnu';
-      if (!parAgent[key]) parAgent[key] = { agent: i.agents, count: 0, total: 0 };
-      parAgent[key].count += 1;
-      parAgent[key].total += i.paye ? i.montant : 0;
-    });
-
-    const tbody = document.getElementById('stats-agents-body');
-    tbody.innerHTML = '';
-    Object.values(parAgent).sort((a, b) => b.count - a.count).forEach(row => {
-      const a = row.agent;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${a ? escapeHtml(a.prenom + ' ' + a.nom) : 'Agent supprimé'}</td>
-        <td>${a ? '<span class="role-badge ' + a.role + '">' + (ROLE_LABELS[a.role] || a.role) + '</span>' : '—'}</td>
-        <td>${row.count}</td>
-        <td>${formatRyos(row.total)}</td>`;
-      tbody.appendChild(tr);
-    });
   } catch (e) { console.error(e); }
 }
 

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gérance — Kensatsu de Sunagakure</title>
-  <link rel="stylesheet" href="style.css?v=13">
-  <link rel="stylesheet" href="admin.css?v=13">
+  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="admin.css?v=14">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -59,22 +59,13 @@
               <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/></svg> Statistiques Générales</h3>
               <div class="stat-grid">
                 <div class="stat-card"><div class="stat-value" id="stat-total-infractions">0</div><div class="stat-label">Infractions enregistrées</div></div>
-                <div class="stat-card"><div class="stat-value" id="stat-total-collecte">0 ₽</div><div class="stat-label">Amendes collectées</div></div>
-                <div class="stat-card"><div class="stat-value" id="stat-total-impaye">0 ₽</div><div class="stat-label">Amendes impayées</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-total-agents">0</div><div class="stat-label">Agents actifs</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-total-casiers">0</div><div class="stat-label">Casiers ouverts</div></div>
-                <div class="stat-card"><div class="stat-value" id="stat-moyenne-amende">0 ₽</div><div class="stat-label">Amende moyenne</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-total-dossiers">0</div><div class="stat-label">Dossiers d'enquête</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-total-plaintes">0</div><div class="stat-label">Plaintes enregistrées</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-en-service">0</div><div class="stat-label">Agents en service</div></div>
               </div>
-              <h3 style="margin-top:6px;">Amendes par agent</h3>
-              <div class="table-wrapper">
-                <table class="data-table">
-                  <thead><tr><th>Agent</th><th>Rôle</th><th>Infractions émises</th><th>Total collecté</th></tr></thead>
-                  <tbody id="stats-agents-body"></tbody>
-                </table>
-              </div>
+              <p class="info-text" style="margin-top:6px;">Le détail des Ryos (collecté, impayé, par agent) est dans l'onglet <strong>Comptabilité</strong>.</p>
             </section>
           </div>
 
@@ -196,7 +187,7 @@
     </div>
   </div>
 
-  <script src="common.js?v=13"></script>
-  <script src="admin.js?v=13"></script>
+  <script src="common.js?v=14"></script>
+  <script src="admin.js?v=14"></script>
 </body>
 </html>
