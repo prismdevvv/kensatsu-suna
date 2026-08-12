@@ -384,19 +384,12 @@ function resizeImageToDataUrl(file, maxSize) {
   });
 }
 
-window.addEventListener('paste', async (e) => {
-  const items = e.clipboardData && e.clipboardData.items;
-  if (!items) return;
-  let file = null;
-  for (const item of items) {
-    if (item.type.startsWith('image/')) { file = item.getAsFile(); break; }
-  }
-  if (!file) return;
-
+// ── Réception d'une image (par Ctrl+V ou par le sélecteur de fichier) ──
+async function handleIncomingImageFile(file) {
   const overlay = document.getElementById('casier-modal-overlay');
   if (overlay && !overlay.classList.contains('hidden') && selectedNinjaKey) {
-    e.preventDefault();
     const hint = document.getElementById('casier-photo-hint');
+    hint.classList.remove('hidden');
     hint.textContent = 'Enregistrement...';
     try {
       const dataUrl = await resizeImageToDataUrl(file, 500);
@@ -414,12 +407,11 @@ window.addEventListener('paste', async (e) => {
       console.error(err);
       hint.textContent = "Erreur, réessaie.";
     }
-    return;
+    return true;
   }
 
   const dossierOverlay = document.getElementById('dossier-modal-overlay');
   if (dossierOverlay && !dossierOverlay.classList.contains('hidden') && openDossierId) {
-    e.preventDefault();
     const zone = document.getElementById('dossier-photo-add-zone');
     if (zone) zone.textContent = '...';
     try {
@@ -430,7 +422,33 @@ window.addEventListener('paste', async (e) => {
       console.error(err);
       if (zone) zone.textContent = 'Erreur';
     }
+    return true;
   }
+  return false;
+}
+
+window.addEventListener('paste', async (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  let file = null;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) { file = item.getAsFile(); break; }
+  }
+  if (!file) return;
+  const handled = await handleIncomingImageFile(file);
+  if (handled) e.preventDefault();
+});
+
+document.getElementById('casier-photo-wrap').addEventListener('click', () => {
+  const img = document.getElementById('casier-photo-img');
+  if (!img.classList.contains('hidden')) return; // clic sur l'image = zoom (géré ailleurs)
+  document.getElementById('photo-file-input').click();
+});
+
+document.getElementById('photo-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (file) await handleIncomingImageFile(file);
 });
 
 async function loadInfractionsList() {
@@ -838,6 +856,8 @@ async function loadDossierGallery(id) {
   try {
     const photos = await supaGet('dossier_photos', `dossier_id=eq.${id}&select=id,photo_data&order=created_at.asc`);
     photos.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'dossier-photo-item';
       const img = document.createElement('img');
       img.className = 'dossier-photo-thumb';
       img.src = p.photo_data;
@@ -846,16 +866,32 @@ async function loadDossierGallery(id) {
         document.getElementById('photo-zoom-img').src = p.photo_data;
         document.getElementById('photo-zoom-overlay').classList.remove('hidden');
       });
-      wrap.appendChild(img);
+      const delBtn = document.createElement('button');
+      delBtn.className = 'dossier-photo-del';
+      delBtn.type = 'button';
+      delBtn.title = 'Supprimer cette photo';
+      delBtn.textContent = '×';
+      delBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!confirm('Supprimer cette photo ?')) return;
+        try {
+          await supaDelete('dossier_photos', `id=eq.${p.id}`);
+          loadDossierGallery(id);
+        } catch (err) { console.error(err); }
+      });
+      item.appendChild(img);
+      item.appendChild(delBtn);
+      wrap.appendChild(item);
     });
     const addZone = document.createElement('div');
     addZone.className = 'dossier-photo-add';
     addZone.id = 'dossier-photo-add-zone';
-    addZone.title = 'Cliquer puis coller une image (Ctrl+V)';
+    addZone.title = 'Cliquer pour choisir une image, ou coller (Ctrl+V)';
     addZone.textContent = '+ Photo';
     addZone.addEventListener('click', () => {
       addZone.classList.add('active');
       addZone.textContent = 'Colle (Ctrl+V)';
+      document.getElementById('photo-file-input').click();
     });
     wrap.appendChild(addZone);
   } catch (e) { console.error(e); }

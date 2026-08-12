@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -157,10 +157,11 @@
   <div id="casier-modal-overlay" class="modal-overlay hidden">
     <div class="modal casier-modal">
       <div class="dossier-head">
-        <div class="casier-photo-wrap" id="casier-photo-wrap" title="Cliquer pour agrandir">
+        <div class="casier-photo-wrap" id="casier-photo-wrap" title="Cliquer pour ajouter/agrandir une photo">
           <img id="casier-photo-img" class="casier-photo hidden" alt="Photo du ninja">
-          <div id="casier-photo-hint" class="casier-photo-hint">Colle une image (Ctrl+V)</div>
+          <div id="casier-photo-hint" class="casier-photo-hint">Cliquer ou coller (Ctrl+V)</div>
         </div>
+        <input type="file" id="photo-file-input" accept="image/*" class="hidden">
         <div>
           <div class="infraction-titre" id="casier-nom"></div>
           <div class="infraction-meta" id="casier-meta"></div>
@@ -240,7 +241,7 @@
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="common.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
