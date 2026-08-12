@@ -37,7 +37,6 @@ function hasSpecialisation(spec) {
 let currentUser = null;
 let clockInterval = null;
 let articlesCache = [];
-let activeDossierPasteId = null;
 
 const loginThrottle = makeLoginThrottle('kensatsu_login_throttle');
 
@@ -158,7 +157,6 @@ function showGroup(name) {
   if (name === 'historique') loadHistorique();
   if (name === 'registre') loadRegistreCasiers();
   if (name === 'dossiers') loadDossiers();
-  else activeDossierPasteId = null;
 }
 document.querySelectorAll('.snav').forEach(b => {
   b.addEventListener('click', () => showGroup(b.dataset.group));
@@ -419,14 +417,15 @@ window.addEventListener('paste', async (e) => {
     return;
   }
 
-  if (activeDossierPasteId) {
+  const dossierOverlay = document.getElementById('dossier-modal-overlay');
+  if (dossierOverlay && !dossierOverlay.classList.contains('hidden') && openDossierId) {
     e.preventDefault();
-    const zone = document.querySelector(`.dossier-photo-add[data-id="${activeDossierPasteId}"]`);
+    const zone = document.getElementById('dossier-photo-add-zone');
     if (zone) zone.textContent = '...';
     try {
       const dataUrl = await resizeImageToDataUrl(file, 500);
-      await supaPost('dossier_photos', { dossier_id: activeDossierPasteId, photo_data: dataUrl }, true);
-      loadDossiers();
+      await supaPost('dossier_photos', { dossier_id: openDossierId, photo_data: dataUrl }, true);
+      loadDossierGallery(openDossierId);
     } catch (err) {
       console.error(err);
       if (zone) zone.textContent = 'Erreur';
@@ -717,20 +716,15 @@ document.getElementById('dossier-form').addEventListener('submit', async (e) => 
   }
 });
 
+let dossiersCache = [];
+let openDossierId = null;
+
 async function loadDossiers() {
   const ul = document.getElementById('dossiers-list');
   ul.innerHTML = '<li class="list-empty">Chargement...</li>';
   try {
     const rows = await supaGet('dossiers_enquete', 'select=*,agents(nom,prenom)&order=created_at.desc');
-    let photosByDossier = {};
-    if (rows.length > 0) {
-      const ids = rows.map(r => r.id).join(',');
-      const photos = await supaGet('dossier_photos', `dossier_id=in.(${ids})&select=id,dossier_id,photo_data&order=created_at.asc`);
-      photos.forEach(p => {
-        if (!photosByDossier[p.dossier_id]) photosByDossier[p.dossier_id] = [];
-        photosByDossier[p.dossier_id].push(p);
-      });
-    }
+    dossiersCache = rows;
     ul.innerHTML = '';
     if (rows.length === 0) {
       ul.innerHTML = '<li class="list-empty">Aucun dossier d\'enquête pour le moment</li>';
@@ -739,57 +733,132 @@ async function loadDossiers() {
     rows.forEach(d => {
       const li = document.createElement('li');
       const date = new Date(d.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const auteur = d.agents ? `${d.agents.prenom} ${d.agents.nom}` : 'agent supprimé';
-      const statutOptions = Object.entries(DOSSIER_STATUT_LABELS)
-        .map(([v, l]) => `<option value="${v}"${d.statut === v ? ' selected' : ''}>${l}</option>`).join('');
-      const photos = photosByDossier[d.id] || [];
-      const thumbs = photos.map(p => `<img class="dossier-photo-thumb" data-photo-id="${p.id}" src="${p.photo_data}" alt="Preuve">`).join('');
+      li.className = 'dossier-folder';
       li.innerHTML = `
-        <div class="infraction-item">
-          <div class="infraction-left">
-            <div class="infraction-titre">${escapeHtml(d.titre)}${d.ninja_nom ? ' — ' + escapeHtml(d.ninja_nom) : ''}</div>
-            <div class="infraction-meta">Ouvert le ${date} par ${escapeHtml(auteur)}</div>
-            ${d.description ? `<div class="infraction-meta">${escapeHtml(d.description)}</div>` : ''}
-            <div class="dossier-gallery">
-              ${thumbs}
-              <div class="dossier-photo-add" data-id="${d.id}" title="Cliquer puis coller une image (Ctrl+V)">+ Photo</div>
-            </div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;">
-            <select class="dossier-statut-select" data-id="${d.id}">${statutOptions}</select>
-            <button class="btn-delete-inf" data-id="${d.id}">Supprimer</button>
-          </div>
-        </div>`;
-      li.querySelector('.dossier-statut-select').addEventListener('change', async (ev) => {
-        try {
-          await supaPatch('dossiers_enquete', `id=eq.${d.id}`, { statut: ev.target.value, updated_at: new Date().toISOString() }, true);
-        } catch (err) { console.error(err); }
-      });
-      li.querySelector('.btn-delete-inf').addEventListener('click', async () => {
-        if (!confirm('Supprimer définitivement ce dossier ?')) return;
-        try {
-          await supaDelete('dossiers_enquete', `id=eq.${d.id}`);
-          loadDossiers();
-        } catch (err) { console.error(err); }
-      });
-      li.querySelector('.dossier-photo-add').addEventListener('click', (ev) => {
-        document.querySelectorAll('.dossier-photo-add').forEach(z => z.classList.remove('active'));
-        activeDossierPasteId = d.id;
-        ev.target.classList.add('active');
-        ev.target.textContent = 'Colle (Ctrl+V)';
-      });
-      li.querySelectorAll('.dossier-photo-thumb').forEach(thumb => {
-        thumb.addEventListener('click', () => {
-          document.getElementById('photo-zoom-img').src = thumb.src;
-          document.getElementById('photo-zoom-overlay').classList.remove('hidden');
-        });
-      });
+        <span class="dossier-folder-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/></svg></span>
+        <div class="dossier-folder-info">
+          <div class="infraction-titre">${escapeHtml(d.titre)}</div>
+          <div class="infraction-meta">${d.ninja_nom ? escapeHtml(d.ninja_nom) + ' · ' : ''}${date}</div>
+        </div>
+        <span class="tag dossier-statut-tag dossier-statut-${d.statut}">${DOSSIER_STATUT_LABELS[d.statut] || d.statut}</span>`;
+      li.addEventListener('click', () => openDossierModal(d.id));
       ul.appendChild(li);
     });
   } catch (e) {
     console.error(e);
     ul.innerHTML = '<li class="list-empty">Erreur de chargement des dossiers</li>';
   }
+}
+
+async function openDossierModal(id) {
+  const d = dossiersCache.find(x => x.id === id);
+  if (!d) return;
+  openDossierId = id;
+  const date = new Date(d.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const auteur = d.agents ? `${d.agents.prenom} ${d.agents.nom}` : 'agent supprimé';
+  document.getElementById('dossier-modal-titre').textContent = d.titre;
+  document.getElementById('dossier-modal-meta').textContent = `${d.ninja_nom ? d.ninja_nom + ' · ' : ''}Ouvert le ${date} par ${auteur}`;
+  document.getElementById('dossier-modal-statut').value = d.statut;
+  document.getElementById('dossier-modal-description').textContent = d.description || 'Aucune description.';
+  document.getElementById('dossier-note-form').reset();
+  document.getElementById('dossier-modal-overlay').classList.remove('hidden');
+  await Promise.all([loadDossierNotes(id), loadDossierGallery(id)]);
+}
+
+document.getElementById('dossier-modal-close').addEventListener('click', () => {
+  document.getElementById('dossier-modal-overlay').classList.add('hidden');
+  openDossierId = null;
+});
+
+document.getElementById('dossier-modal-statut').addEventListener('change', async (e) => {
+  if (!openDossierId) return;
+  try {
+    await supaPatch('dossiers_enquete', `id=eq.${openDossierId}`, { statut: e.target.value, updated_at: new Date().toISOString() }, true);
+    loadDossiers();
+  } catch (err) { console.error(err); }
+});
+
+document.getElementById('dossier-delete-btn').addEventListener('click', async () => {
+  if (!openDossierId) return;
+  if (!confirm('Supprimer définitivement ce dossier (notes et photos incluses) ?')) return;
+  try {
+    await supaDelete('dossiers_enquete', `id=eq.${openDossierId}`);
+    document.getElementById('dossier-modal-overlay').classList.add('hidden');
+    openDossierId = null;
+    loadDossiers();
+  } catch (err) { console.error(err); }
+});
+
+async function loadDossierNotes(id) {
+  const ul = document.getElementById('dossier-notes-list');
+  ul.innerHTML = '<li class="list-empty">Chargement...</li>';
+  try {
+    const notes = await supaGet('dossier_notes', `dossier_id=eq.${id}&select=*,agents(nom,prenom)&order=created_at.desc`);
+    ul.innerHTML = '';
+    if (notes.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucune note pour le moment</li>';
+      return;
+    }
+    notes.forEach(n => {
+      const li = document.createElement('li');
+      const date = new Date(n.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const auteur = n.agents ? `${n.agents.prenom} ${n.agents.nom}` : 'agent supprimé';
+      li.innerHTML = `
+        <div class="infraction-meta">${date} · ${escapeHtml(auteur)}</div>
+        <div class="infraction-titre" style="font-weight:400;font-size:13.5px;">${escapeHtml(n.contenu)}</div>`;
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    ul.innerHTML = '<li class="list-empty">Erreur de chargement des notes</li>';
+  }
+}
+
+document.getElementById('dossier-note-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!openDossierId) return;
+  const contenu = document.getElementById('dossier-note-contenu').value.trim();
+  if (!contenu) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    await supaPost('dossier_notes', { dossier_id: openDossierId, contenu, agent_id: currentUser.id }, true);
+    document.getElementById('dossier-note-form').reset();
+    loadDossierNotes(openDossierId);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+async function loadDossierGallery(id) {
+  const wrap = document.getElementById('dossier-modal-gallery');
+  wrap.innerHTML = '';
+  try {
+    const photos = await supaGet('dossier_photos', `dossier_id=eq.${id}&select=id,photo_data&order=created_at.asc`);
+    photos.forEach(p => {
+      const img = document.createElement('img');
+      img.className = 'dossier-photo-thumb';
+      img.src = p.photo_data;
+      img.alt = 'Preuve';
+      img.addEventListener('click', () => {
+        document.getElementById('photo-zoom-img').src = p.photo_data;
+        document.getElementById('photo-zoom-overlay').classList.remove('hidden');
+      });
+      wrap.appendChild(img);
+    });
+    const addZone = document.createElement('div');
+    addZone.className = 'dossier-photo-add';
+    addZone.id = 'dossier-photo-add-zone';
+    addZone.title = 'Cliquer puis coller une image (Ctrl+V)';
+    addZone.textContent = '+ Photo';
+    addZone.addEventListener('click', () => {
+      addZone.classList.add('active');
+      addZone.textContent = 'Colle (Ctrl+V)';
+    });
+    wrap.appendChild(addZone);
+  } catch (e) { console.error(e); }
 }
 
 initThemeToggle();

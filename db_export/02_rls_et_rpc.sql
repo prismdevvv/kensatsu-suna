@@ -18,6 +18,7 @@ alter table config               enable row level security;
 alter table casier_photos        enable row level security;
 alter table dossiers_enquete      enable row level security;
 alter table dossier_photos        enable row level security;
+alter table dossier_notes         enable row level security;
 
 -- agents : anon peut lire/écrire (nécessaire pour inscription et
 -- gestion par la gérance), mais jamais la colonne sceau.
@@ -53,6 +54,9 @@ create policy "anon_all_dossiers_enquete" on dossiers_enquete for all to anon us
 
 -- dossier_photos : anon peut tout faire (preuves ajoutées par les agents).
 create policy "anon_all_dossier_photos" on dossier_photos for all to anon using (true) with check (true);
+
+-- dossier_notes : anon peut tout faire (journal d'enquête).
+create policy "anon_all_dossier_notes" on dossier_notes for all to anon using (true) with check (true);
 
 -- --- Fonction de connexion : compare le sceau côté serveur et ne
 -- renvoie jamais sa valeur.

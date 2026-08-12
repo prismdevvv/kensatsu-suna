@@ -92,6 +92,16 @@ create table dossier_photos (
 );
 create index on dossier_photos (dossier_id);
 
+-- Journal chronologique de notes d'enquête sur un dossier.
+create table dossier_notes (
+  id          uuid primary key default gen_random_uuid(),
+  dossier_id  uuid not null references dossiers_enquete(id) on delete cascade,
+  contenu     text not null,
+  agent_id    uuid references agents(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+create index on dossier_notes (dossier_id);
+
 create index on infractions (ninja_char_key);
 create index on infractions (article_id);
 create index on infractions (agent_id);

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -143,7 +143,8 @@
                 <button type="submit" class="btn-primary">Créer le dossier</button>
               </form>
               <div class="list-box">
-                <ul id="dossiers-list"></ul>
+                <h4>Dossiers ouverts</h4>
+                <ul id="dossiers-list" class="dossiers-grid"></ul>
               </div>
             </section>
           </div>
@@ -196,12 +197,50 @@
     </div>
   </div>
 
+  <!-- Modal Dossier d'enquête -->
+  <div id="dossier-modal-overlay" class="modal-overlay hidden">
+    <div class="modal casier-modal">
+      <div class="dossier-head">
+        <div>
+          <div class="infraction-titre" id="dossier-modal-titre"></div>
+          <div class="infraction-meta" id="dossier-modal-meta"></div>
+        </div>
+        <select id="dossier-modal-statut" style="margin-left:auto;">
+          <option value="ouvert">Ouvert</option>
+          <option value="en_cours">En cours</option>
+          <option value="clos">Clos</option>
+        </select>
+      </div>
+
+      <p id="dossier-modal-description" class="info-text" style="margin-top:12px;"></p>
+
+      <div class="list-box" style="margin-top:6px;">
+        <h4>Preuves photo</h4>
+        <div class="dossier-gallery" id="dossier-modal-gallery"></div>
+      </div>
+
+      <div class="list-box">
+        <h4>Notes d'enquête</h4>
+        <ul id="dossier-notes-list"></ul>
+        <form id="dossier-note-form" class="form-grid" style="margin-top:10px;">
+          <textarea id="dossier-note-contenu" placeholder="Ajouter une note d'enquête..." rows="2" maxlength="500" required></textarea>
+          <button type="submit" class="btn-primary">Ajouter la note</button>
+        </form>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="dossier-delete-btn" class="btn-delete-inf" style="margin-top:0;">Supprimer le dossier</button>
+        <button type="button" id="dossier-modal-close" class="btn-sm">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Zoom photo -->
   <div id="photo-zoom-overlay" class="modal-overlay hidden">
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="common.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

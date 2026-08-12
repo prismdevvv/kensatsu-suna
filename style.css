@@ -239,6 +239,23 @@ body.dark .casier-photo-wrap { border-color: #33424f; background: rgba(255,255,2
 .photo-zoom-overlay { cursor: zoom-out; }
 .photo-zoom-img { max-width: 90vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,.5); animation: fadeScale .22s cubic-bezier(.2,.8,.3,1) both; }
 
+.dossiers-grid { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dossier-folder {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--paper-mid); border-left: 3px solid var(--gold); border-radius: 10px;
+  background: var(--cream); cursor: pointer; transition: all .18s;
+}
+.dossier-folder:hover { border-color: var(--red-seal); border-left-color: var(--red-seal); background: rgba(179,49,44,.05); transform: translateX(2px); box-shadow: var(--shadow-sm); }
+.dossier-folder-ico { color: var(--gold); flex-shrink: 0; }
+.dossier-folder-ico svg { width: 22px; height: 22px; }
+.dossier-folder-info { flex: 1; min-width: 0; }
+.dossier-statut-tag { flex-shrink: 0; }
+.dossier-statut-ouvert { background: rgba(179,49,44,.12); border: 1px solid rgba(179,49,44,.35); color: var(--red-seal-dark); }
+.dossier-statut-en_cours { background: rgba(184,146,42,.15); border: 1px solid rgba(184,146,42,.4); color: #8a6c1a; }
+.dossier-statut-clos { background: rgba(46,125,50,.15); border: 1px solid rgba(46,125,50,.4); color: var(--green); }
+body.dark .dossier-folder { background: #10161c; border-color: #33424f; }
+body.dark .dossier-folder:hover { border-color: var(--red-seal); background: rgba(179,49,44,.1); }
+
 .dossier-gallery { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .dossier-photo-thumb { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; cursor: zoom-in; border: 1px solid var(--paper-mid); transition: transform .15s, box-shadow .15s; }
 .dossier-photo-thumb:hover { transform: scale(1.06); box-shadow: var(--shadow-sm); }
