@@ -63,6 +63,11 @@ function can(action) {
   return !!(currentPermissions && currentPermissions[action]);
 }
 
+function agentChip(prenom, nom) {
+  const initiale = (prenom || '?').charAt(0).toUpperCase();
+  return `<span class="agent-chip"><span class="agent-avatar">${escapeHtml(initiale)}</span>${escapeHtml(prenom)} ${escapeHtml(nom)}</span>`;
+}
+
 let currentUser = null;
 
 const loginThrottle = makeLoginThrottle('kensatsu_admin_throttle');
@@ -184,13 +189,13 @@ async function loadAgents() {
       const options = ROLE_ORDER.map(r => `<option value="${r}"${a.role === r ? ' selected' : ''}>${ROLE_LABELS[r]}</option>`).join('');
       const isEnqueteur = Array.isArray(a.specialisations) && a.specialisations.includes('enquete');
       tr.innerHTML = editable ? `
-        <td>${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</td>
+        <td>${agentChip(a.prenom, a.nom)}</td>
         <td><span class="role-badge ${a.role}">${ROLE_LABELS[a.role] || a.role}</span></td>
         <td><select class="role-select" data-id="${a.id}">${options}</select></td>
         <td style="text-align:center;"><input type="checkbox" class="specialisation-check" data-id="${a.id}"${isEnqueteur ? ' checked' : ''}></td>
         <td><button class="btn-toggle-actif ${a.actif ? '' : 'inactif'}" data-id="${a.id}" data-actif="${a.actif}">${a.actif ? 'Actif' : 'Désactivé'}</button></td>
         <td><button class="btn-delete-agent" data-id="${a.id}" data-nom="${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}">Supprimer</button></td>` : `
-        <td>${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</td>
+        <td>${agentChip(a.prenom, a.nom)}</td>
         <td><span class="role-badge ${a.role}">${ROLE_LABELS[a.role] || a.role}</span></td>
         <td colspan="4" style="color:var(--text-light);">Lecture seule — permission "Gérer les agents" requise</td>`;
       tbody.appendChild(tr);
@@ -318,7 +323,7 @@ async function loadCompta() {
     Object.values(parAgent).sort((a, b) => (b.collecte + b.impaye) - (a.collecte + a.impaye)).forEach(row => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${row.agent ? escapeHtml(row.agent.prenom + ' ' + row.agent.nom) : 'Agent supprimé'}</td>
+        <td>${row.agent ? agentChip(row.agent.prenom, row.agent.nom) : 'Agent supprimé'}</td>
         <td>${row.count}</td>
         <td>${formatRyos(row.collecte)}</td>
         <td>${formatRyos(row.impaye)}</td>`;
@@ -391,7 +396,7 @@ async function loadServiceHistorique() {
       const tr = document.createElement('tr');
       const dernierDate = new Date(row.dernier).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
       tr.innerHTML = `
-        <td>${row.agent ? escapeHtml(row.agent.prenom + ' ' + row.agent.nom) : 'Agent supprimé'}</td>
+        <td>${row.agent ? agentChip(row.agent.prenom, row.agent.nom) : 'Agent supprimé'}</td>
         <td>${row.count}</td>
         <td>${formatDuree(row.totalMs)}</td>
         <td>${formatDuree(row.totalMs / row.count)}</td>
