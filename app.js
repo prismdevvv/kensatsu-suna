@@ -34,6 +34,47 @@ function hasSpecialisation(spec) {
   return !!(currentUser && Array.isArray(currentUser.specialisations) && currentUser.specialisations.includes(spec));
 }
 
+// ── Permissions configurables par grade (le gérant a toujours tout,
+// ce qui n'est jamais modifiable, même si la table permissions dit
+// le contraire ou est absente/inaccessible) ──
+let currentPermissions = null;
+const PERMISSION_DEFAULTS = {
+  emettre_amende: true,
+  marquer_paye: true,
+  supprimer_infraction: false,
+  acces_dossiers: false,
+  acces_gerance: false,
+  gerer_agents: false
+};
+
+async function loadPermissions() {
+  if (!currentUser) return;
+  if (currentUser.role === 'gerant') { currentPermissions = null; return; }
+  try {
+    const rows = await supaGet('permissions', `role=eq.${currentUser.role}`);
+    if (rows.length === 0) throw new Error('table permissions vide/absente');
+    const map = { ...PERMISSION_DEFAULTS };
+    rows.forEach(r => { map[r.action] = r.allowed; });
+    currentPermissions = map;
+  } catch (e) {
+    // La table n'existe pas encore (migration pas encore exécutée) : on
+    // retombe sur l'ancien comportement figé (co-gérant = admin complet).
+    console.error('Permissions indisponibles, repli sur les valeurs par défaut du rôle.', e);
+    const fallback = { ...PERMISSION_DEFAULTS };
+    if (ADMIN_ROLES.includes(currentUser.role)) {
+      fallback.supprimer_infraction = true;
+      fallback.acces_gerance = true;
+      fallback.gerer_agents = true;
+    }
+    currentPermissions = fallback;
+  }
+}
+
+function can(action) {
+  if (currentUser && currentUser.role === 'gerant') return true;
+  return !!(currentPermissions && currentPermissions[action]);
+}
+
 let currentUser = null;
 let clockInterval = null;
 let articlesCache = [];
@@ -132,15 +173,16 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   }
 });
 
-function showDashboard() {
+async function showDashboard() {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('dashboard-screen').classList.remove('hidden');
   document.getElementById('user-name').textContent = `${currentUser.prenom} ${currentUser.nom}`;
   const roleBadge = document.getElementById('user-role');
   roleBadge.textContent = AGENT_ROLE_LABELS[currentUser.role] || currentUser.role;
   roleBadge.className = 'role-badge ' + currentUser.role;
-  document.getElementById('gerance-link').style.display = ADMIN_ROLES.includes(currentUser.role) ? 'inline-flex' : 'none';
-  document.getElementById('dossiers-nav').style.display = (hasSpecialisation('enquete') || ADMIN_ROLES.includes(currentUser.role)) ? 'inline-flex' : 'none';
+  await loadPermissions();
+  document.getElementById('gerance-link').style.display = can('acces_gerance') ? 'inline-flex' : 'none';
+  document.getElementById('dossiers-nav').style.display = (hasSpecialisation('enquete') || can('acces_dossiers')) ? 'inline-flex' : 'none';
   updateClock();
   clockInterval = setInterval(updateClock, 1000);
   showGroup('service');
@@ -323,7 +365,7 @@ async function loadPlaintes() {
           </div>
           <div style="text-align:right;flex-shrink:0;">
             <select class="plainte-statut-select" data-id="${p.id}">${statutOptions}</select>
-            ${ADMIN_ROLES.includes(currentUser.role) ? `<button class="btn-delete-inf" data-id="${p.id}">Supprimer</button>` : ''}
+            ${can('supprimer_infraction') ? `<button class="btn-delete-inf" data-id="${p.id}">Supprimer</button>` : ''}
           </div>
         </div>`;
       li.querySelector('.plainte-statut-select').addEventListener('change', async (ev) => {
@@ -524,8 +566,8 @@ async function openCasier(key, nom, meta) {
   document.getElementById('casier-nom').textContent = nom;
   document.getElementById('casier-meta').textContent = meta || '';
   document.getElementById('infraction-form').reset();
-  document.getElementById('inf-article').innerHTML = '<option value="">Choisir un article...</option>';
-  document.getElementById('inf-article').disabled = true;
+  selectedArticleId = null;
+  document.getElementById('inf-article-results').classList.add('hidden');
   document.getElementById('article-preview').classList.add('hidden');
   document.getElementById('recidive-alert').classList.add('hidden');
   document.getElementById('montant-total').classList.add('hidden');
@@ -693,7 +735,7 @@ function renderInfractionItem(r) {
       <div style="text-align:right;flex-shrink:0;">
         <div class="infraction-montant">${formatRyos(r.montant)}</div>
         <button class="btn-toggle-paye ${r.paye ? '' : 'impaye'}" data-id="${r.id}" data-paye="${r.paye}">${r.paye ? 'Marquer impayé' : 'Marquer payé'}</button>
-        ${ADMIN_ROLES.includes(currentUser.role) ? `<button class="btn-delete-inf" data-id="${r.id}" title="Supprimer cette infraction">Supprimer</button>` : ''}
+        ${can('supprimer_infraction') ? `<button class="btn-delete-inf" data-id="${r.id}" title="Supprimer cette infraction">Supprimer</button>` : ''}
       </div>
     </div>`;
   li.querySelector('.btn-toggle-paye').addEventListener('click', async (ev) => {
@@ -729,35 +771,53 @@ async function loadArticlesCache() {
   } catch (e) { console.error(e); }
 }
 
-document.getElementById('inf-categorie').addEventListener('change', (e) => {
-  const cat = e.target.value;
-  const sel = document.getElementById('inf-article');
-  sel.innerHTML = '<option value="">Choisir un article...</option>';
+let selectedArticleId = null;
+const CAT_LABELS_SHORT = { mineur: 'Mineur', majeur: 'Majeur', crime: 'Crime' };
+
+document.getElementById('inf-article-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  selectedArticleId = null;
   document.getElementById('article-preview').classList.add('hidden');
   document.getElementById('recidive-alert').classList.add('hidden');
   document.getElementById('montant-total').classList.add('hidden');
-  if (!cat) { sel.disabled = true; return; }
-  articlesCache.filter(a => a.categorie === cat).forEach(a => {
-    sel.insertAdjacentHTML('beforeend', `<option value="${a.id}">${escapeHtml(a.code)} — ${escapeHtml(a.libelle)} (${formatRyos(a.amende)})</option>`);
-  });
-  sel.disabled = false;
+  const results = document.getElementById('inf-article-results');
+  if (!q) { results.classList.add('hidden'); results.innerHTML = ''; return; }
+  const matches = articlesCache.filter(a =>
+    a.code.toLowerCase().includes(q) || a.libelle.toLowerCase().includes(q)
+  ).slice(0, 20);
+  results.innerHTML = '';
+  if (matches.length === 0) {
+    results.innerHTML = '<li class="search-result-empty">Aucun article trouvé</li>';
+  } else {
+    matches.forEach(a => {
+      const li = document.createElement('li');
+      li.className = 'search-result';
+      li.innerHTML = `<strong>${escapeHtml(a.code)}</strong> [${CAT_LABELS_SHORT[a.categorie] || a.categorie}] — ${escapeHtml(a.libelle)} <span class="infraction-meta">${formatRyos(a.amende)}</span>`;
+      li.addEventListener('click', () => {
+        selectedArticleId = a.id;
+        document.getElementById('inf-article-search').value = `${a.code} — ${a.libelle}`;
+        results.classList.add('hidden');
+        updateArticlePreview();
+      });
+      results.appendChild(li);
+    });
+  }
+  results.classList.remove('hidden');
 });
 
-document.getElementById('inf-article').addEventListener('change', () => updateArticlePreview());
 document.getElementById('inf-aggravante').addEventListener('change', () => updateArticlePreview(true));
 
 let recidiveNiveauCourant = 0;
 
 async function updateArticlePreview(keepRecidive) {
-  const articleId = document.getElementById('inf-article').value;
   const preview = document.getElementById('article-preview');
   const alertBox = document.getElementById('recidive-alert');
   const totalBox = document.getElementById('montant-total');
-  if (!articleId) {
+  if (!selectedArticleId) {
     preview.classList.add('hidden'); alertBox.classList.add('hidden'); totalBox.classList.add('hidden');
     return;
   }
-  const art = articlesCache.find(a => a.id === articleId);
+  const art = articlesCache.find(a => a.id === selectedArticleId);
   if (!art) return;
 
   preview.classList.remove('hidden');
@@ -805,8 +865,7 @@ document.getElementById('infraction-form').addEventListener('submit', async (e) 
   e.preventDefault();
   const statusEl = document.getElementById('infraction-status');
   statusEl.textContent = '';
-  const articleId = document.getElementById('inf-article').value;
-  const art = articlesCache.find(a => a.id === articleId);
+  const art = articlesCache.find(a => a.id === selectedArticleId);
   if (!art || !selectedNinjaKey) { statusEl.textContent = 'Sélectionne un article.'; return; }
 
   const aggravante = document.getElementById('inf-aggravante').checked;
@@ -832,8 +891,8 @@ document.getElementById('infraction-form').addEventListener('submit', async (e) 
     }, true);
 
     document.getElementById('infraction-form').reset();
-    document.getElementById('inf-article').innerHTML = '<option value="">Choisir un article...</option>';
-    document.getElementById('inf-article').disabled = true;
+    selectedArticleId = null;
+    document.getElementById('inf-article-results').classList.add('hidden');
     document.getElementById('article-preview').classList.add('hidden');
     document.getElementById('recidive-alert').classList.add('hidden');
     document.getElementById('montant-total').classList.add('hidden');

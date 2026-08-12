@@ -17,6 +17,52 @@ const ROLE_LABELS = {
 };
 const ADMIN_ROLES = ['co_gerant', 'gerant'];
 
+const PERMISSION_ACTIONS = [
+  { key: 'emettre_amende', label: 'Émettre une amende' },
+  { key: 'marquer_paye', label: 'Marquer payé / impayé' },
+  { key: 'supprimer_infraction', label: 'Supprimer une infraction / plainte' },
+  { key: 'acces_dossiers', label: 'Créer / gérer les dossiers d\'enquête' },
+  { key: 'acces_gerance', label: 'Accéder à la gérance' },
+  { key: 'gerer_agents', label: 'Gérer les agents (grades, activation, suppression)' }
+];
+const PERMISSION_DEFAULTS = {
+  emettre_amende: true, marquer_paye: true, supprimer_infraction: false,
+  acces_dossiers: false, acces_gerance: false, gerer_agents: false
+};
+
+// Vérifie l'accès gérance pour un rôle donné, avec repli sur l'ancien
+// modèle figé (co_gerant/gerant) si la table permissions est absente.
+async function checkAccesGerance(role) {
+  if (role === 'gerant') return true;
+  try {
+    const rows = await supaGet('permissions', `role=eq.${role}&action=eq.acces_gerance`);
+    if (rows.length === 0) throw new Error('vide');
+    return !!rows[0].allowed;
+  } catch (e) {
+    return ADMIN_ROLES.includes(role);
+  }
+}
+
+let currentPermissions = null;
+async function loadMyPermissions() {
+  if (currentUser.role === 'gerant') { currentPermissions = null; return; }
+  try {
+    const rows = await supaGet('permissions', `role=eq.${currentUser.role}`);
+    if (rows.length === 0) throw new Error('vide');
+    const map = { ...PERMISSION_DEFAULTS };
+    rows.forEach(r => { map[r.action] = r.allowed; });
+    currentPermissions = map;
+  } catch (e) {
+    const fallback = { ...PERMISSION_DEFAULTS };
+    if (ADMIN_ROLES.includes(currentUser.role)) { fallback.gerer_agents = true; fallback.acces_gerance = true; fallback.supprimer_infraction = true; }
+    currentPermissions = fallback;
+  }
+}
+function can(action) {
+  if (currentUser && currentUser.role === 'gerant') return true;
+  return !!(currentPermissions && currentPermissions[action]);
+}
+
 let currentUser = null;
 
 const loginThrottle = makeLoginThrottle('kensatsu_admin_throttle');
@@ -45,8 +91,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       errEl.textContent = 'Identité ou sceau incorrect.';
       return;
     }
-    if (!ADMIN_ROLES.includes(users[0].role)) {
-      errEl.textContent = "Accès réservé à la gérance (co-gérant / gérant).";
+    if (!(await checkAccesGerance(users[0].role))) {
+      errEl.textContent = "Tu n'as pas la permission d'accéder à la gérance.";
       return;
     }
     loginThrottle.registerSuccess();
@@ -68,11 +114,12 @@ function showAdmin() {
   const badge = document.getElementById('user-role-badge');
   badge.textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
   badge.className = `role-badge ${currentUser.role}`;
+  loadMyPermissions().then(() => loadAgents());
   loadStats();
-  loadAgents();
   populateAgentSelects();
   loadCompta();
   loadServiceHistorique();
+  loadPermissionsTable();
 }
 
 document.querySelectorAll('.snav').forEach(b => {
@@ -90,9 +137,9 @@ document.getElementById('logout-btn').addEventListener('click', () => {
   document.getElementById('login-form').reset();
 });
 
-(function restoreSession() {
+(async function restoreSession() {
   const saved = loadSession(SESSION_KEY);
-  if (saved && ADMIN_ROLES.includes(saved.role)) { currentUser = saved; showAdmin(); }
+  if (saved && (await checkAccesGerance(saved.role))) { currentUser = saved; showAdmin(); }
 })();
 
 // --- Statistiques ---
@@ -160,19 +207,24 @@ async function loadAgents() {
     const agentsList = await supaGet('agents', 'select=id,nom,prenom,role,specialisations,actif&order=nom.asc,prenom.asc');
     const tbody = document.getElementById('agents-body');
     tbody.innerHTML = '';
+    const editable = can('gerer_agents');
     agentsList.forEach(a => {
       const tr = document.createElement('tr');
       const options = ROLE_ORDER.map(r => `<option value="${r}"${a.role === r ? ' selected' : ''}>${ROLE_LABELS[r]}</option>`).join('');
       const isEnqueteur = Array.isArray(a.specialisations) && a.specialisations.includes('enquete');
-      tr.innerHTML = `
+      tr.innerHTML = editable ? `
         <td>${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</td>
         <td><span class="role-badge ${a.role}">${ROLE_LABELS[a.role] || a.role}</span></td>
         <td><select class="role-select" data-id="${a.id}">${options}</select></td>
         <td style="text-align:center;"><input type="checkbox" class="specialisation-check" data-id="${a.id}"${isEnqueteur ? ' checked' : ''}></td>
         <td><button class="btn-toggle-actif ${a.actif ? '' : 'inactif'}" data-id="${a.id}" data-actif="${a.actif}">${a.actif ? 'Actif' : 'Désactivé'}</button></td>
-        <td><button class="btn-delete-agent" data-id="${a.id}" data-nom="${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}">Supprimer</button></td>`;
+        <td><button class="btn-delete-agent" data-id="${a.id}" data-nom="${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}">Supprimer</button></td>` : `
+        <td>${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</td>
+        <td><span class="role-badge ${a.role}">${ROLE_LABELS[a.role] || a.role}</span></td>
+        <td colspan="4" style="color:var(--text-light);">Lecture seule — permission "Gérer les agents" requise</td>`;
       tbody.appendChild(tr);
     });
+    if (!editable) return;
 
     tbody.querySelectorAll('.role-select').forEach(sel => {
       sel.addEventListener('change', async () => {
@@ -377,6 +429,64 @@ async function loadServiceHistorique() {
     });
     if (Object.keys(parAgent).length === 0) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);">Aucun service sur cette période</td></tr>';
   } catch (e) { console.error(e); }
+}
+
+// --- Tableau des permissions (édition par grade) ---
+async function loadPermissionsTable() {
+  const head = document.getElementById('permissions-table-head');
+  const body = document.getElementById('permissions-table-body');
+  head.innerHTML = '<th>Action</th>' + ROLE_ORDER.map(r => `<th>${ROLE_LABELS[r]}</th>`).join('');
+
+  let rows = [];
+  let tableMissing = false;
+  try {
+    rows = await supaGet('permissions', 'select=*');
+    if (rows.length === 0) tableMissing = true;
+  } catch (e) { tableMissing = true; }
+
+  const current = {};
+  ROLE_ORDER.forEach(r => { current[r] = { ...PERMISSION_DEFAULTS }; });
+  if (ADMIN_ROLES.includes('co_gerant')) { current.co_gerant.acces_gerance = true; current.co_gerant.gerer_agents = true; current.co_gerant.supprimer_infraction = true; }
+  current.gerant = { emettre_amende: true, marquer_paye: true, supprimer_infraction: true, acces_dossiers: true, acces_gerance: true, gerer_agents: true };
+  rows.forEach(r => { if (current[r.role]) current[r.role][r.action] = r.allowed; });
+
+  body.innerHTML = '';
+  if (tableMissing) {
+    body.innerHTML = `<tr><td colspan="${ROLE_ORDER.length + 1}" style="color:var(--text-light);">Table "permissions" pas encore créée — exécute db_export/10_migration_permissions.sql. En attendant, l'ancien comportement figé est utilisé (co-gérant/gérant = accès complet).</td></tr>`;
+  }
+
+  PERMISSION_ACTIONS.forEach(action => {
+    const tr = document.createElement('tr');
+    let cells = `<td>${escapeHtml(action.label)}</td>`;
+    ROLE_ORDER.forEach(role => {
+      if (role === 'gerant') {
+        cells += `<td style="text-align:center;color:var(--green);font-weight:700;">✅ Toujours</td>`;
+      } else {
+        const allowed = current[role][action.key];
+        cells += `<td><select class="perm-select" data-role="${role}" data-action="${action.key}">
+          <option value="true"${allowed ? ' selected' : ''}>Autorisé</option>
+          <option value="false"${!allowed ? ' selected' : ''}>Interdit</option>
+        </select></td>`;
+      }
+    });
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('.perm-select').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const role = sel.dataset.role;
+      const action = sel.dataset.action;
+      const allowed = sel.value === 'true';
+      try {
+        await supaUpsert('permissions', { role, action, allowed }, '?on_conflict=role,action');
+        if (currentUser && role === currentUser.role) await loadMyPermissions();
+      } catch (e) {
+        console.error(e);
+        alert('Erreur : la table "permissions" n\'existe peut-être pas encore. Exécute db_export/10_migration_permissions.sql.');
+      }
+    });
+  });
 }
 
 initThemeToggle();

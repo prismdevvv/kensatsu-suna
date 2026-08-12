@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gérance — Kensatsu de Sunagakure</title>
-  <link rel="stylesheet" href="style.css?v=11">
-  <link rel="stylesheet" href="admin.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="admin.css?v=12">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -182,21 +182,11 @@
           <div class="group-panel" data-group="permissions">
             <section class="panel-section">
               <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Tableau des Permissions</h3>
-              <p class="info-text">Ce que chaque grade peut faire sur le site kensatsu.</p>
+              <p class="info-text">Attribue chaque action par grade. Le grade <strong>Gérant</strong> a toujours accès à tout — non modifiable, pour ne jamais te bloquer l'accès à la gérance par erreur.</p>
               <div class="table-wrapper">
-                <table class="data-table">
-                  <thead><tr><th>Action</th><th>Gardien → Commandant</th><th>Enquêteur</th><th>Co-gérant / Gérant</th></tr></thead>
-                  <tbody>
-                    <tr><td>Rechercher un ninja &amp; consulter un casier</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                    <tr><td>Émettre une amende</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                    <tr><td>Marquer une amende payée / impayée</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                    <tr><td>Consulter l'historique &amp; le code pénal</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                    <tr><td>Supprimer une infraction d'un casier</td><td>❌</td><td>❌</td><td>✅</td></tr>
-                    <tr><td>Créer / gérer un dossier d'enquête</td><td>❌</td><td>✅</td><td>✅</td></tr>
-                    <tr><td>Accéder à la gérance (statistiques)</td><td>❌</td><td>❌</td><td>✅</td></tr>
-                    <tr><td>Attribuer les grades &amp; la spécialisation Enquêteur</td><td>❌</td><td>❌</td><td>✅</td></tr>
-                    <tr><td>Activer / désactiver ou supprimer un agent</td><td>❌</td><td>❌</td><td>✅</td></tr>
-                  </tbody>
+                <table class="data-table" id="permissions-table">
+                  <thead><tr id="permissions-table-head"></tr></thead>
+                  <tbody id="permissions-table-body"></tbody>
                 </table>
               </div>
             </section>
@@ -206,7 +196,7 @@
     </div>
   </div>
 
-  <script src="common.js?v=11"></script>
-  <script src="admin.js?v=11"></script>
+  <script src="common.js?v=12"></script>
+  <script src="admin.js?v=12"></script>
 </body>
 </html>
