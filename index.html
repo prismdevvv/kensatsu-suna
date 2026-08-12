@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -106,6 +106,7 @@
               <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/></svg> Historique des Infractions</h3>
               <p class="info-text">Toutes les amendes enregistrées par la kensatsu, les plus récentes en premier.</p>
               <div class="form-grid">
+                <input type="text" id="hist-search" placeholder="Rechercher par ninja, code ou libellé d'article..." maxlength="60" autocomplete="off">
                 <div class="search-filters">
                   <select id="hist-statut"><option value="">Toutes</option><option value="impaye">Impayées</option><option value="paye">Payées</option></select>
                   <select id="hist-categorie"><option value="">Toutes catégories</option><option value="mineur">Délits mineurs</option><option value="majeur">Délits majeurs</option><option value="crime">Crimes</option></select>
@@ -241,7 +242,7 @@
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="common.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

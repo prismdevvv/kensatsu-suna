@@ -489,7 +489,7 @@ function renderInfractionItem(r) {
       <div style="text-align:right;flex-shrink:0;">
         <div class="infraction-montant">${formatRyos(r.montant)}</div>
         <button class="btn-toggle-paye ${r.paye ? '' : 'impaye'}" data-id="${r.id}" data-paye="${r.paye}">${r.paye ? 'Marquer impayé' : 'Marquer payé'}</button>
-        <button class="btn-delete-inf" data-id="${r.id}" title="Supprimer cette infraction">Supprimer</button>
+        ${ADMIN_ROLES.includes(currentUser.role) ? `<button class="btn-delete-inf" data-id="${r.id}" title="Supprimer cette infraction">Supprimer</button>` : ''}
       </div>
     </div>`;
   li.querySelector('.btn-toggle-paye').addEventListener('click', async (ev) => {
@@ -502,16 +502,19 @@ function renderInfractionItem(r) {
       loadHistorique();
     } catch (e) { console.error(e); }
   });
-  li.querySelector('.btn-delete-inf').addEventListener('click', async (ev) => {
-    const id = ev.target.dataset.id;
-    if (!confirm('Supprimer définitivement cette infraction du casier ?')) return;
-    try {
-      await supaDelete('infractions', `id=eq.${id}`);
-      await loadInfractionsList();
-      loadHistorique();
-      loadRegistreCasiers();
-    } catch (e) { console.error(e); }
-  });
+  const delBtn = li.querySelector('.btn-delete-inf');
+  if (delBtn) {
+    delBtn.addEventListener('click', async (ev) => {
+      const id = ev.target.dataset.id;
+      if (!confirm('Supprimer définitivement cette infraction du casier ?')) return;
+      try {
+        await supaDelete('infractions', `id=eq.${id}`);
+        await loadInfractionsList();
+        loadHistorique();
+        loadRegistreCasiers();
+      } catch (e) { console.error(e); }
+    });
+  }
   return li;
 }
 
@@ -645,6 +648,11 @@ document.getElementById('infraction-form').addEventListener('submit', async (e) 
 // ── Historique global ──
 document.getElementById('hist-statut').addEventListener('change', () => loadHistorique());
 document.getElementById('hist-categorie').addEventListener('change', () => loadHistorique());
+let histSearchTimer = null;
+document.getElementById('hist-search').addEventListener('input', () => {
+  clearTimeout(histSearchTimer);
+  histSearchTimer = setTimeout(() => loadHistorique(), 250);
+});
 
 async function loadHistorique() {
   const ul = document.getElementById('historique-list');
@@ -653,11 +661,20 @@ async function loadHistorique() {
   try {
     const statut = document.getElementById('hist-statut').value;
     const categorie = document.getElementById('hist-categorie').value;
-    let query = 'select=*,articles_code_penal(code,libelle,categorie),agents(nom,prenom)&order=created_at.desc&limit=100';
+    const search = document.getElementById('hist-search').value.trim().toLowerCase();
+    let query = 'select=*,articles_code_penal(code,libelle,categorie),agents(nom,prenom)&order=created_at.desc&limit=200';
     if (statut === 'paye') query += '&paye=eq.true';
     if (statut === 'impaye') query += '&paye=eq.false';
     const rows = await supaGet('infractions', query);
-    const filtered = categorie ? rows.filter(r => r.articles_code_penal && r.articles_code_penal.categorie === categorie) : rows;
+    let filtered = categorie ? rows.filter(r => r.articles_code_penal && r.articles_code_penal.categorie === categorie) : rows;
+    if (search) {
+      filtered = filtered.filter(r => {
+        const art = r.articles_code_penal || {};
+        return (r.ninja_nom || '').toLowerCase().includes(search)
+          || (art.code || '').toLowerCase().includes(search)
+          || (art.libelle || '').toLowerCase().includes(search);
+      });
+    }
     ul.innerHTML = '';
     if (filtered.length === 0) {
       ul.innerHTML = '<li class="list-empty">Aucune infraction enregistrée</li>';
