@@ -561,15 +561,15 @@ async function updateArticlePreview(keepRecidive) {
     <div class="ap-row"><span class="ap-label">Jugement</span><span>${jugementBadge(art.jugement)}</span></div>`;
 
   if (!keepRecidive) {
-    recidiveNiveauCourant = await computeRecidiveNiveau();
+    recidiveNiveauCourant = await computeRecidiveNiveau(art.id);
   }
   if (recidiveNiveauCourant === 1) {
     alertBox.className = 'recidive-alert niveau1';
-    alertBox.textContent = 'Récidive détectée sous 1 an (1ère) — surcharge de +20% appliquée automatiquement.';
+    alertBox.textContent = 'Récidive du même article sous 1 an (1ère) — surcharge de +20% appliquée automatiquement.';
     alertBox.classList.remove('hidden');
   } else if (recidiveNiveauCourant === 2) {
     alertBox.className = 'recidive-alert niveau2';
-    alertBox.textContent = 'Récidive détectée sous 1 an (2e ou plus) — surcharge de +40% appliquée automatiquement.';
+    alertBox.textContent = 'Récidive du même article sous 1 an (2e ou plus) — surcharge de +40% appliquée automatiquement.';
     alertBox.classList.remove('hidden');
   } else {
     alertBox.classList.add('hidden');
@@ -583,11 +583,11 @@ async function updateArticlePreview(keepRecidive) {
   totalBox.textContent = `Montant total : ${formatRyos(total)}`;
 }
 
-async function computeRecidiveNiveau() {
+async function computeRecidiveNiveau(articleId) {
   try {
     const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
     const rows = await supaGet('infractions',
-      `ninja_char_key=eq.${encodeURIComponent(selectedNinjaKey)}&created_at=gte.${oneYearAgo}&select=id`);
+      `ninja_char_key=eq.${encodeURIComponent(selectedNinjaKey)}&article_id=eq.${articleId}&created_at=gte.${oneYearAgo}&select=id`);
     if (rows.length >= 2) return 2;
     if (rows.length === 1) return 1;
     return 0;
