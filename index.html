@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -94,6 +94,21 @@
             <section class="panel-section">
               <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M7 9h10M7 13h10M7 17h6"/></svg> Registre des Casiers</h3>
               <p class="info-text">Tous les ninjas ayant déjà un casier ouvert à la kensatsu, les plus récemment actifs en premier.</p>
+              <div class="form-grid">
+                <input type="text" id="registre-search" placeholder="Rechercher un ninja..." maxlength="60" autocomplete="off">
+                <div class="search-filters">
+                  <select id="registre-statut">
+                    <option value="">Tous les casiers</option>
+                    <option value="impaye">Avec amende impayée</option>
+                    <option value="paye">Entièrement payé</option>
+                  </select>
+                  <select id="registre-tri">
+                    <option value="recent">Plus récent d'abord</option>
+                    <option value="montant">Impayé le plus élevé</option>
+                    <option value="count">Le plus d'infractions</option>
+                  </select>
+                </div>
+              </div>
               <div class="list-box">
                 <ul id="registre-list" class="search-results"></ul>
               </div>
@@ -242,7 +257,7 @@
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="common.js?v=9"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

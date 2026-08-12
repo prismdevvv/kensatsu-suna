@@ -282,35 +282,60 @@ function renderNinjaResults(chars, isBrowse) {
 }
 
 // ── Registre des casiers déjà enregistrés ──
+let registreCache = null;
+
+document.getElementById('registre-search').addEventListener('input', () => renderRegistre());
+document.getElementById('registre-statut').addEventListener('change', () => renderRegistre());
+document.getElementById('registre-tri').addEventListener('change', () => renderRegistre());
+
 async function loadRegistreCasiers() {
   const ul = document.getElementById('registre-list');
   ul.innerHTML = '<li class="list-empty">Chargement...</li>';
   try {
-    const rows = await supaGet('infractions', 'select=ninja_char_key,ninja_nom,montant,paye,created_at&order=created_at.desc&limit=500');
+    const rows = await supaGet('infractions', 'select=ninja_char_key,ninja_nom,montant,paye,created_at&order=created_at.desc&limit=1000');
     const map = {};
     rows.forEach(r => {
-      if (!map[r.ninja_char_key]) map[r.ninja_char_key] = { nom: r.ninja_nom, count: 0, impaye: 0, derniere: r.created_at };
+      if (!map[r.ninja_char_key]) map[r.ninja_char_key] = { nom: r.ninja_nom, count: 0, impaye: 0, totalPaye: true, derniere: r.created_at };
       map[r.ninja_char_key].count += 1;
-      if (!r.paye) map[r.ninja_char_key].impaye += r.montant;
+      if (!r.paye) { map[r.ninja_char_key].impaye += r.montant; map[r.ninja_char_key].totalPaye = false; }
     });
-    const list = Object.entries(map).sort((a, b) => new Date(b[1].derniere) - new Date(a[1].derniere));
-    ul.innerHTML = '';
-    if (list.length === 0) {
-      ul.innerHTML = '<li class="list-empty">Aucun casier enregistré pour le moment</li>';
-      return;
-    }
-    list.forEach(([key, info]) => {
-      const li = document.createElement('li');
-      const date = new Date(info.derniere).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      li.className = 'search-result';
-      li.innerHTML = `<strong>${escapeHtml(info.nom)}</strong> <span class="infraction-meta">${info.count} infraction${info.count > 1 ? 's' : ''} · dernière le ${date}${info.impaye > 0 ? ' · <span class="tag tag-impaye">' + formatRyos(info.impaye) + ' impayé</span>' : ''}</span>`;
-      li.addEventListener('click', () => openCasier(key, info.nom, `${info.count} infraction${info.count > 1 ? 's' : ''} au casier`));
-      ul.appendChild(li);
-    });
+    registreCache = Object.entries(map).map(([key, info]) => ({ key, ...info }));
+    renderRegistre();
   } catch (e) {
     console.error(e);
     ul.innerHTML = '<li class="list-empty">Erreur de chargement du registre</li>';
   }
+}
+
+function renderRegistre() {
+  const ul = document.getElementById('registre-list');
+  if (!registreCache) return;
+  const search = document.getElementById('registre-search').value.trim().toLowerCase();
+  const statut = document.getElementById('registre-statut').value;
+  const tri = document.getElementById('registre-tri').value;
+
+  let list = registreCache.slice();
+  if (search) list = list.filter(info => info.nom.toLowerCase().includes(search));
+  if (statut === 'impaye') list = list.filter(info => info.impaye > 0);
+  if (statut === 'paye') list = list.filter(info => info.totalPaye);
+
+  if (tri === 'montant') list.sort((a, b) => b.impaye - a.impaye);
+  else if (tri === 'count') list.sort((a, b) => b.count - a.count);
+  else list.sort((a, b) => new Date(b.derniere) - new Date(a.derniere));
+
+  ul.innerHTML = '';
+  if (list.length === 0) {
+    ul.innerHTML = '<li class="list-empty">Aucun casier ne correspond à ces filtres</li>';
+    return;
+  }
+  list.forEach(info => {
+    const li = document.createElement('li');
+    const date = new Date(info.derniere).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    li.className = 'search-result';
+    li.innerHTML = `<strong>${escapeHtml(info.nom)}</strong> <span class="infraction-meta">${info.count} infraction${info.count > 1 ? 's' : ''} · dernière le ${date}${info.impaye > 0 ? ' · <span class="tag tag-impaye">' + formatRyos(info.impaye) + ' impayé</span>' : ' · <span class="tag tag-paye">Tout payé</span>'}</span>`;
+    li.addEventListener('click', () => openCasier(info.key, info.nom, `${info.count} infraction${info.count > 1 ? 's' : ''} au casier`));
+    ul.appendChild(li);
+  });
 }
 
 // ── Casier judiciaire (modal) ──
