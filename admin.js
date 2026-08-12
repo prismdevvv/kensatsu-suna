@@ -70,6 +70,9 @@ function showAdmin() {
   badge.className = `role-badge ${currentUser.role}`;
   loadStats();
   loadAgents();
+  populateAgentSelects();
+  loadCompta();
+  loadServiceHistorique();
 }
 
 document.querySelectorAll('.snav').forEach(b => {
@@ -105,6 +108,28 @@ async function loadStats() {
     document.getElementById('stat-total-collecte').textContent = formatRyos(totalCollecte);
     document.getElementById('stat-total-impaye').textContent = formatRyos(totalImpaye);
     document.getElementById('stat-total-agents').textContent = agentsList.length;
+
+    const casiersUniques = new Set();
+    const infractionsCasiers = await supaGet('infractions', 'select=ninja_char_key');
+    infractionsCasiers.forEach(i => casiersUniques.add(i.ninja_char_key));
+    document.getElementById('stat-total-casiers').textContent = casiersUniques.size;
+    document.getElementById('stat-moyenne-amende').textContent = infractions.length
+      ? formatRyos(infractions.reduce((s, i) => s + i.montant, 0) / infractions.length) : '0 ₽';
+
+    try {
+      const dossiers = await supaGet('dossiers_enquete', 'select=id');
+      document.getElementById('stat-total-dossiers').textContent = dossiers.length;
+    } catch (e) { document.getElementById('stat-total-dossiers').textContent = '—'; }
+
+    try {
+      const plaintes = await supaGet('plaintes', 'select=id');
+      document.getElementById('stat-total-plaintes').textContent = plaintes.length;
+    } catch (e) { document.getElementById('stat-total-plaintes').textContent = '—'; }
+
+    try {
+      const enService = await supaGet('postes', 'actif=eq.true&select=id');
+      document.getElementById('stat-en-service').textContent = enService.length;
+    } catch (e) { document.getElementById('stat-en-service').textContent = '—'; }
 
     const parAgent = {};
     infractions.forEach(i => {
@@ -195,6 +220,162 @@ async function loadAgents() {
         } catch (e) { console.error(e); }
       });
     });
+  } catch (e) { console.error(e); }
+}
+
+// --- Sélecteurs d'agent partagés (Comptabilité / Service) ---
+async function populateAgentSelects() {
+  try {
+    const agentsList = await supaGet('agents', 'select=id,nom,prenom&order=nom.asc,prenom.asc');
+    ['compta-agent', 'service-agent'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '<option value="all">Tous</option>';
+      agentsList.forEach(a => {
+        sel.insertAdjacentHTML('beforeend', `<option value="${a.id}">${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</option>`);
+      });
+    });
+  } catch (e) { console.error(e); }
+}
+
+// --- Bornes de période partagées ---
+function getPeriodRange(period) {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'today') return { start: startOfDay, end: null };
+  if (period === 'week') {
+    const dayIdx = (now.getDay() + 6) % 7; // lundi = 0
+    const start = new Date(startOfDay); start.setDate(start.getDate() - dayIdx);
+    return { start, end: null };
+  }
+  if (period === 'week-1') {
+    const dayIdx = (now.getDay() + 6) % 7;
+    const startThis = new Date(startOfDay); startThis.setDate(startThis.getDate() - dayIdx);
+    const start = new Date(startThis); start.setDate(start.getDate() - 7);
+    return { start, end: startThis };
+  }
+  if (period === 'month') {
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: null };
+  }
+  return { start: null, end: null };
+}
+
+// --- Comptabilité ---
+document.getElementById('compta-refresh').addEventListener('click', () => loadCompta());
+
+async function loadCompta() {
+  try {
+    const { start, end } = getPeriodRange(document.getElementById('compta-periode').value);
+    const agentFilter = document.getElementById('compta-agent').value;
+    const categorieFilter = document.getElementById('compta-categorie').value;
+
+    let query = 'select=*,articles_code_penal(categorie),agents(nom,prenom)';
+    if (start) query += `&created_at=gte.${start.toISOString()}`;
+    if (end) query += `&created_at=lt.${end.toISOString()}`;
+    if (agentFilter !== 'all') query += `&agent_id=eq.${agentFilter}`;
+
+    let rows = await supaGet('infractions', query);
+    if (categorieFilter) rows = rows.filter(r => r.articles_code_penal && r.articles_code_penal.categorie === categorieFilter);
+
+    const collecte = rows.filter(r => r.paye).reduce((s, r) => s + r.montant, 0);
+    const impaye = rows.filter(r => !r.paye).reduce((s, r) => s + r.montant, 0);
+    document.getElementById('compta-total').textContent = rows.length;
+    document.getElementById('compta-collecte').textContent = formatRyos(collecte);
+    document.getElementById('compta-impaye').textContent = formatRyos(impaye);
+    document.getElementById('compta-emis').textContent = formatRyos(collecte + impaye);
+
+    const parAgent = {};
+    rows.forEach(r => {
+      const key = r.agent_id || 'inconnu';
+      if (!parAgent[key]) parAgent[key] = { agent: r.agents, count: 0, collecte: 0, impaye: 0 };
+      parAgent[key].count += 1;
+      if (r.paye) parAgent[key].collecte += r.montant; else parAgent[key].impaye += r.montant;
+    });
+    const agentsBody = document.getElementById('compta-agents-body');
+    agentsBody.innerHTML = '';
+    Object.values(parAgent).sort((a, b) => (b.collecte + b.impaye) - (a.collecte + a.impaye)).forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.agent ? escapeHtml(row.agent.prenom + ' ' + row.agent.nom) : 'Agent supprimé'}</td>
+        <td>${row.count}</td>
+        <td>${formatRyos(row.collecte)}</td>
+        <td>${formatRyos(row.impaye)}</td>`;
+      agentsBody.appendChild(tr);
+    });
+    if (Object.keys(parAgent).length === 0) agentsBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">Aucune donnée sur cette période</td></tr>';
+
+    const CAT_LABELS = { mineur: 'Délits mineurs', majeur: 'Délits majeurs', crime: 'Crimes' };
+    const parCategorie = {};
+    rows.forEach(r => {
+      const cat = (r.articles_code_penal && r.articles_code_penal.categorie) || 'inconnue';
+      if (!parCategorie[cat]) parCategorie[cat] = { count: 0, collecte: 0, impaye: 0 };
+      parCategorie[cat].count += 1;
+      if (r.paye) parCategorie[cat].collecte += r.montant; else parCategorie[cat].impaye += r.montant;
+    });
+    const catBody = document.getElementById('compta-categories-body');
+    catBody.innerHTML = '';
+    Object.entries(parCategorie).forEach(([cat, row]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${CAT_LABELS[cat] || cat}</td>
+        <td>${row.count}</td>
+        <td>${formatRyos(row.collecte)}</td>
+        <td>${formatRyos(row.impaye)}</td>`;
+      catBody.appendChild(tr);
+    });
+    if (Object.keys(parCategorie).length === 0) catBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-light);">Aucune donnée sur cette période</td></tr>';
+  } catch (e) { console.error(e); }
+}
+
+// --- Historique des services ---
+document.getElementById('service-refresh').addEventListener('click', () => loadServiceHistorique());
+
+function formatDuree(ms) {
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${m} min`;
+}
+
+async function loadServiceHistorique() {
+  try {
+    const { start, end } = getPeriodRange(document.getElementById('service-periode').value);
+    const agentFilter = document.getElementById('service-agent').value;
+
+    let query = 'select=*,agents(nom,prenom)&order=debut.desc';
+    if (start) query += `&debut=gte.${start.toISOString()}`;
+    if (end) query += `&debut=lt.${end.toISOString()}`;
+    if (agentFilter !== 'all') query += `&agent_id=eq.${agentFilter}`;
+
+    const rows = await supaGet('postes', query);
+    const now = Date.now();
+
+    document.getElementById('service-en-cours').textContent = rows.filter(r => r.actif).length;
+    document.getElementById('service-total-postes').textContent = rows.length;
+    const totalMs = rows.reduce((s, r) => s + ((r.fin ? new Date(r.fin).getTime() : now) - new Date(r.debut).getTime()), 0);
+    document.getElementById('service-total-temps').textContent = formatDuree(totalMs);
+
+    const parAgent = {};
+    rows.forEach(r => {
+      const key = r.agent_id || 'inconnu';
+      if (!parAgent[key]) parAgent[key] = { agent: r.agents, count: 0, totalMs: 0, dernier: r.debut };
+      parAgent[key].count += 1;
+      parAgent[key].totalMs += (r.fin ? new Date(r.fin).getTime() : now) - new Date(r.debut).getTime();
+      if (new Date(r.debut) > new Date(parAgent[key].dernier)) parAgent[key].dernier = r.debut;
+    });
+    const tbody = document.getElementById('service-recap-body');
+    tbody.innerHTML = '';
+    Object.values(parAgent).sort((a, b) => b.totalMs - a.totalMs).forEach(row => {
+      const tr = document.createElement('tr');
+      const dernierDate = new Date(row.dernier).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      tr.innerHTML = `
+        <td>${row.agent ? escapeHtml(row.agent.prenom + ' ' + row.agent.nom) : 'Agent supprimé'}</td>
+        <td>${row.count}</td>
+        <td>${formatDuree(row.totalMs)}</td>
+        <td>${formatDuree(row.totalMs / row.count)}</td>
+        <td>${dernierDate}</td>`;
+      tbody.appendChild(tr);
+    });
+    if (Object.keys(parAgent).length === 0) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);">Aucun service sur cette période</td></tr>';
   } catch (e) { console.error(e); }
 }
 

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gérance — Kensatsu de Sunagakure</title>
-  <link rel="stylesheet" href="style.css?v=10">
-  <link rel="stylesheet" href="admin.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="admin.css?v=11">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -39,6 +39,8 @@
         </div>
         <nav class="sidebar-nav">
           <button class="snav active" data-group="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/></svg> Statistiques</button>
+          <button class="snav" data-group="compta"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.2c0-1.2 1.1-2.2 2.5-2.2s2.5.9 2.5 2c0 2.6-5 1.4-5 4 0 1.1 1.1 2 2.5 2s2.5-1 2.5-2.2"/></svg> Comptabilité</button>
+          <button class="snav" data-group="service-histo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16"/><path d="M8 3v3.5M16 3v3.5"/><path d="M9 13.5h2v3H9z"/></svg> Service</button>
           <button class="snav" data-group="agents"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M17.5 19a5.5 5.5 0 0 0-3-4.9"/></svg> Agents</button>
           <button class="snav" data-group="permissions"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Permissions</button>
         </nav>
@@ -60,12 +62,103 @@
                 <div class="stat-card"><div class="stat-value" id="stat-total-collecte">0 ₽</div><div class="stat-label">Amendes collectées</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-total-impaye">0 ₽</div><div class="stat-label">Amendes impayées</div></div>
                 <div class="stat-card"><div class="stat-value" id="stat-total-agents">0</div><div class="stat-label">Agents actifs</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-casiers">0</div><div class="stat-label">Casiers ouverts</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-moyenne-amende">0 ₽</div><div class="stat-label">Amende moyenne</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-dossiers">0</div><div class="stat-label">Dossiers d'enquête</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-plaintes">0</div><div class="stat-label">Plaintes enregistrées</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-en-service">0</div><div class="stat-label">Agents en service</div></div>
               </div>
               <h3 style="margin-top:6px;">Amendes par agent</h3>
               <div class="table-wrapper">
                 <table class="data-table">
                   <thead><tr><th>Agent</th><th>Rôle</th><th>Infractions émises</th><th>Total collecté</th></tr></thead>
                   <tbody id="stats-agents-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <!-- GROUPE COMPTABILITE -->
+          <div class="group-panel" data-group="compta">
+            <section class="panel-section">
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.2c0-1.2 1.1-2.2 2.5-2.2s2.5.9 2.5 2c0 2.6-5 1.4-5 4 0 1.1 1.1 2 2.5 2s2.5-1 2.5-2.2"/></svg> Comptabilité des Ryos</h3>
+              <p class="info-text">Suis les Ryos collectés/impayés sur une période, filtrés par agent ou catégorie.</p>
+              <div class="filters">
+                <div class="field"><label>Période</label>
+                  <select id="compta-periode">
+                    <option value="today">Aujourd'hui</option>
+                    <option value="week" selected>Cette semaine</option>
+                    <option value="week-1">Semaine dernière</option>
+                    <option value="month">Ce mois</option>
+                    <option value="all">Tout</option>
+                  </select>
+                </div>
+                <div class="field"><label>Agent</label>
+                  <select id="compta-agent"><option value="all">Tous</option></select>
+                </div>
+                <div class="field"><label>Catégorie</label>
+                  <select id="compta-categorie">
+                    <option value="">Toutes</option>
+                    <option value="mineur">Délits mineurs</option>
+                    <option value="majeur">Délits majeurs</option>
+                    <option value="crime">Crimes</option>
+                  </select>
+                </div>
+                <button id="compta-refresh" class="btn-primary" style="width:auto;margin-top:20px;padding:10px 20px">Actualiser</button>
+              </div>
+              <div class="stat-grid" style="margin-top:18px;">
+                <div class="stat-card"><div class="stat-value" id="compta-total">0</div><div class="stat-label">Infractions sur la période</div></div>
+                <div class="stat-card"><div class="stat-value" id="compta-collecte">0 ₽</div><div class="stat-label">Collecté</div></div>
+                <div class="stat-card"><div class="stat-value" id="compta-impaye">0 ₽</div><div class="stat-label">Impayé</div></div>
+                <div class="stat-card"><div class="stat-value" id="compta-emis">0 ₽</div><div class="stat-label">Total émis</div></div>
+              </div>
+              <h3 style="margin-top:6px;">Détail par agent</h3>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Agent</th><th>Infractions</th><th>Collecté</th><th>Impayé</th></tr></thead>
+                  <tbody id="compta-agents-body"></tbody>
+                </table>
+              </div>
+              <h3 style="margin-top:18px;">Détail par catégorie</h3>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Catégorie</th><th>Infractions</th><th>Collecté</th><th>Impayé</th></tr></thead>
+                  <tbody id="compta-categories-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <!-- GROUPE SERVICE -->
+          <div class="group-panel" data-group="service-histo">
+            <section class="panel-section">
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16"/><path d="M8 3v3.5M16 3v3.5"/></svg> Historique des Services</h3>
+              <p class="info-text">Suivi des prises de service des agents.</p>
+              <div class="filters">
+                <div class="field"><label>Période</label>
+                  <select id="service-periode">
+                    <option value="today">Aujourd'hui</option>
+                    <option value="week" selected>Cette semaine</option>
+                    <option value="week-1">Semaine dernière</option>
+                    <option value="month">Ce mois</option>
+                    <option value="all">Tout</option>
+                  </select>
+                </div>
+                <div class="field"><label>Agent</label>
+                  <select id="service-agent"><option value="all">Tous</option></select>
+                </div>
+                <button id="service-refresh" class="btn-primary" style="width:auto;margin-top:20px;padding:10px 20px">Actualiser</button>
+              </div>
+              <div class="stat-grid" style="margin-top:18px;">
+                <div class="stat-card"><div class="stat-value" id="service-en-cours">0</div><div class="stat-label">Actuellement en service</div></div>
+                <div class="stat-card"><div class="stat-value" id="service-total-postes">0</div><div class="stat-label">Services sur la période</div></div>
+                <div class="stat-card"><div class="stat-value" id="service-total-temps">0h</div><div class="stat-label">Temps total cumulé</div></div>
+              </div>
+              <h3 style="margin-top:6px;">Récapitulatif par agent</h3>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Agent</th><th>Nb de services</th><th>Temps total</th><th>Moy. / service</th><th>Dernier service</th></tr></thead>
+                  <tbody id="service-recap-body"></tbody>
                 </table>
               </div>
             </section>
@@ -113,7 +206,7 @@
     </div>
   </div>
 
-  <script src="common.js?v=10"></script>
-  <script src="admin.js?v=10"></script>
+  <script src="common.js?v=11"></script>
+  <script src="admin.js?v=11"></script>
 </body>
 </html>
