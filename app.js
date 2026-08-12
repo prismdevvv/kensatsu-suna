@@ -37,6 +37,7 @@ function hasSpecialisation(spec) {
 let currentUser = null;
 let clockInterval = null;
 let articlesCache = [];
+let activeDossierPasteId = null;
 
 const loginThrottle = makeLoginThrottle('kensatsu_login_throttle');
 
@@ -157,6 +158,7 @@ function showGroup(name) {
   if (name === 'historique') loadHistorique();
   if (name === 'registre') loadRegistreCasiers();
   if (name === 'dossiers') loadDossiers();
+  else activeDossierPasteId = null;
 }
 document.querySelectorAll('.snav').forEach(b => {
   b.addEventListener('click', () => showGroup(b.dataset.group));
@@ -385,33 +387,49 @@ function resizeImageToDataUrl(file, maxSize) {
 }
 
 window.addEventListener('paste', async (e) => {
-  const overlay = document.getElementById('casier-modal-overlay');
-  if (!overlay || overlay.classList.contains('hidden') || !selectedNinjaKey) return;
   const items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
+  let file = null;
   for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      e.preventDefault();
-      const file = item.getAsFile();
-      const hint = document.getElementById('casier-photo-hint');
-      hint.textContent = 'Enregistrement...';
-      try {
-        const dataUrl = await resizeImageToDataUrl(file, 500);
-        await supaUpsert('casier_photos', {
-          ninja_char_key: selectedNinjaKey,
-          photo_data: dataUrl,
-          updated_by: currentUser.id,
-          updated_at: new Date().toISOString()
-        }, '?on_conflict=ninja_char_key');
-        const img = document.getElementById('casier-photo-img');
-        img.src = dataUrl;
-        img.classList.remove('hidden');
-        hint.classList.add('hidden');
-      } catch (err) {
-        console.error(err);
-        hint.textContent = "Erreur, réessaie.";
-      }
-      break;
+    if (item.type.startsWith('image/')) { file = item.getAsFile(); break; }
+  }
+  if (!file) return;
+
+  const overlay = document.getElementById('casier-modal-overlay');
+  if (overlay && !overlay.classList.contains('hidden') && selectedNinjaKey) {
+    e.preventDefault();
+    const hint = document.getElementById('casier-photo-hint');
+    hint.textContent = 'Enregistrement...';
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 500);
+      await supaUpsert('casier_photos', {
+        ninja_char_key: selectedNinjaKey,
+        photo_data: dataUrl,
+        updated_by: currentUser.id,
+        updated_at: new Date().toISOString()
+      }, '?on_conflict=ninja_char_key');
+      const img = document.getElementById('casier-photo-img');
+      img.src = dataUrl;
+      img.classList.remove('hidden');
+      hint.classList.add('hidden');
+    } catch (err) {
+      console.error(err);
+      hint.textContent = "Erreur, réessaie.";
+    }
+    return;
+  }
+
+  if (activeDossierPasteId) {
+    e.preventDefault();
+    const zone = document.querySelector(`.dossier-photo-add[data-id="${activeDossierPasteId}"]`);
+    if (zone) zone.textContent = '...';
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 500);
+      await supaPost('dossier_photos', { dossier_id: activeDossierPasteId, photo_data: dataUrl }, true);
+      loadDossiers();
+    } catch (err) {
+      console.error(err);
+      if (zone) zone.textContent = 'Erreur';
     }
   }
 });
@@ -704,6 +722,15 @@ async function loadDossiers() {
   ul.innerHTML = '<li class="list-empty">Chargement...</li>';
   try {
     const rows = await supaGet('dossiers_enquete', 'select=*,agents(nom,prenom)&order=created_at.desc');
+    let photosByDossier = {};
+    if (rows.length > 0) {
+      const ids = rows.map(r => r.id).join(',');
+      const photos = await supaGet('dossier_photos', `dossier_id=in.(${ids})&select=id,dossier_id,photo_data&order=created_at.asc`);
+      photos.forEach(p => {
+        if (!photosByDossier[p.dossier_id]) photosByDossier[p.dossier_id] = [];
+        photosByDossier[p.dossier_id].push(p);
+      });
+    }
     ul.innerHTML = '';
     if (rows.length === 0) {
       ul.innerHTML = '<li class="list-empty">Aucun dossier d\'enquête pour le moment</li>';
@@ -715,12 +742,18 @@ async function loadDossiers() {
       const auteur = d.agents ? `${d.agents.prenom} ${d.agents.nom}` : 'agent supprimé';
       const statutOptions = Object.entries(DOSSIER_STATUT_LABELS)
         .map(([v, l]) => `<option value="${v}"${d.statut === v ? ' selected' : ''}>${l}</option>`).join('');
+      const photos = photosByDossier[d.id] || [];
+      const thumbs = photos.map(p => `<img class="dossier-photo-thumb" data-photo-id="${p.id}" src="${p.photo_data}" alt="Preuve">`).join('');
       li.innerHTML = `
         <div class="infraction-item">
           <div class="infraction-left">
             <div class="infraction-titre">${escapeHtml(d.titre)}${d.ninja_nom ? ' — ' + escapeHtml(d.ninja_nom) : ''}</div>
             <div class="infraction-meta">Ouvert le ${date} par ${escapeHtml(auteur)}</div>
             ${d.description ? `<div class="infraction-meta">${escapeHtml(d.description)}</div>` : ''}
+            <div class="dossier-gallery">
+              ${thumbs}
+              <div class="dossier-photo-add" data-id="${d.id}" title="Cliquer puis coller une image (Ctrl+V)">+ Photo</div>
+            </div>
           </div>
           <div style="text-align:right;flex-shrink:0;">
             <select class="dossier-statut-select" data-id="${d.id}">${statutOptions}</select>
@@ -738,6 +771,18 @@ async function loadDossiers() {
           await supaDelete('dossiers_enquete', `id=eq.${d.id}`);
           loadDossiers();
         } catch (err) { console.error(err); }
+      });
+      li.querySelector('.dossier-photo-add').addEventListener('click', (ev) => {
+        document.querySelectorAll('.dossier-photo-add').forEach(z => z.classList.remove('active'));
+        activeDossierPasteId = d.id;
+        ev.target.classList.add('active');
+        ev.target.textContent = 'Colle (Ctrl+V)';
+      });
+      li.querySelectorAll('.dossier-photo-thumb').forEach(thumb => {
+        thumb.addEventListener('click', () => {
+          document.getElementById('photo-zoom-img').src = thumb.src;
+          document.getElementById('photo-zoom-overlay').classList.remove('hidden');
+        });
       });
       ul.appendChild(li);
     });

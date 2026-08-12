@@ -83,6 +83,15 @@ create table dossiers_enquete (
 );
 create index on dossiers_enquete (statut);
 
+-- Photos (preuves) attachées à un dossier d'enquête — plusieurs par dossier.
+create table dossier_photos (
+  id          uuid primary key default gen_random_uuid(),
+  dossier_id  uuid not null references dossiers_enquete(id) on delete cascade,
+  photo_data  text not null,
+  created_at  timestamptz not null default now()
+);
+create index on dossier_photos (dossier_id);
+
 create index on infractions (ninja_char_key);
 create index on infractions (article_id);
 create index on infractions (agent_id);
