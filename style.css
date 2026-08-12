@@ -147,6 +147,10 @@ h3 .ico { color: var(--red-seal); filter: drop-shadow(0 1px 1px rgba(0,0,0,.08))
 .form-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
 .form-check input { width: auto; accent-color: var(--red-seal); }
 
+.article-search-wrap { position: relative; }
+.article-search-ico { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
+.article-search-wrap input { padding-left: 36px !important; }
+
 /* RECHERCHE NINJA */
 .search-results { list-style: none; margin-top: 10px; max-height: 420px; overflow-y: auto; }
 .search-result { padding: 11px 14px; border: 1px solid var(--paper-mid); border-left: 3px solid transparent; border-radius: 9px; margin-bottom: 7px; cursor: pointer; background: var(--cream); transition: all .18s; font-size: 14px; }

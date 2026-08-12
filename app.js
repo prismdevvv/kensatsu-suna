@@ -568,6 +568,7 @@ async function openCasier(key, nom, meta) {
   document.getElementById('infraction-form').reset();
   selectedArticleId = null;
   document.getElementById('inf-article-results').classList.add('hidden');
+  document.getElementById('inf-article').disabled = true;
   document.getElementById('article-preview').classList.add('hidden');
   document.getElementById('recidive-alert').classList.add('hidden');
   document.getElementById('montant-total').classList.add('hidden');
@@ -797,12 +798,48 @@ document.getElementById('inf-article-search').addEventListener('input', (e) => {
         selectedArticleId = a.id;
         document.getElementById('inf-article-search').value = `${a.code} — ${a.libelle}`;
         results.classList.add('hidden');
+        syncArticleSelects(a);
         updateArticlePreview();
       });
       results.appendChild(li);
     });
   }
   results.classList.remove('hidden');
+});
+
+// Garde les menus déroulants synchronisés avec l'article choisi via la recherche.
+function syncArticleSelects(art) {
+  const catSel = document.getElementById('inf-categorie');
+  const artSel = document.getElementById('inf-article');
+  catSel.value = art.categorie;
+  fillArticleSelect(art.categorie);
+  artSel.value = art.id;
+}
+
+function fillArticleSelect(categorie) {
+  const sel = document.getElementById('inf-article');
+  sel.innerHTML = '<option value="">Choisir un article...</option>';
+  if (!categorie) { sel.disabled = true; return; }
+  articlesCache.filter(a => a.categorie === categorie).forEach(a => {
+    sel.insertAdjacentHTML('beforeend', `<option value="${a.id}">${escapeHtml(a.code)} — ${escapeHtml(a.libelle)} (${formatRyos(a.amende)})</option>`);
+  });
+  sel.disabled = false;
+}
+
+document.getElementById('inf-categorie').addEventListener('change', (e) => {
+  selectedArticleId = null;
+  document.getElementById('inf-article-search').value = '';
+  document.getElementById('article-preview').classList.add('hidden');
+  document.getElementById('recidive-alert').classList.add('hidden');
+  document.getElementById('montant-total').classList.add('hidden');
+  fillArticleSelect(e.target.value);
+});
+
+document.getElementById('inf-article').addEventListener('change', (e) => {
+  selectedArticleId = e.target.value || null;
+  document.getElementById('inf-article-search').value = '';
+  document.getElementById('inf-article-results').classList.add('hidden');
+  updateArticlePreview();
 });
 
 document.getElementById('inf-aggravante').addEventListener('change', () => updateArticlePreview(true));
@@ -893,6 +930,7 @@ document.getElementById('infraction-form').addEventListener('submit', async (e) 
     document.getElementById('infraction-form').reset();
     selectedArticleId = null;
     document.getElementById('inf-article-results').classList.add('hidden');
+    document.getElementById('inf-article').disabled = true;
     document.getElementById('article-preview').classList.add('hidden');
     document.getElementById('recidive-alert').classList.add('hidden');
     document.getElementById('montant-total').classList.add('hidden');

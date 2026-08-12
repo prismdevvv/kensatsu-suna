@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -236,8 +236,21 @@
       </div>
 
       <form id="infraction-form" class="form-grid" style="margin-top:16px;">
-        <input type="text" id="inf-article-search" placeholder="Rechercher un article (nom ou code, ex: vol, 2.5, insulte)..." autocomplete="off">
+        <div class="article-search-wrap">
+          <svg class="article-search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="text" id="inf-article-search" placeholder="Rechercher un article (nom ou code, ex: vol, 2.5, insulte)..." autocomplete="off">
+        </div>
         <ul id="inf-article-results" class="search-results hidden"></ul>
+        <div class="info-text" style="margin:-4px 0 0;text-align:center;">— ou choisir dans la liste —</div>
+        <select id="inf-categorie">
+          <option value="">Choisir une catégorie...</option>
+          <option value="mineur">Délits mineurs</option>
+          <option value="majeur">Délits majeurs</option>
+          <option value="crime">Crimes</option>
+        </select>
+        <select id="inf-article" disabled>
+          <option value="">Choisir un article...</option>
+        </select>
         <div id="article-preview" class="article-preview hidden"></div>
         <div id="recidive-alert" class="recidive-alert hidden"></div>
         <label class="form-check"><input type="checkbox" id="inf-aggravante"> Circonstance aggravante (Haut Commandement / agents) — amende ×2</label>
@@ -296,7 +309,7 @@
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="common.js?v=13"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
