@@ -132,17 +132,20 @@ async function loadStats() {
 // --- Gestion des agents ---
 async function loadAgents() {
   try {
-    const agentsList = await supaGet('agents', 'select=id,nom,prenom,role,actif&order=nom.asc,prenom.asc');
+    const agentsList = await supaGet('agents', 'select=id,nom,prenom,role,specialisations,actif&order=nom.asc,prenom.asc');
     const tbody = document.getElementById('agents-body');
     tbody.innerHTML = '';
     agentsList.forEach(a => {
       const tr = document.createElement('tr');
       const options = ROLE_ORDER.map(r => `<option value="${r}"${a.role === r ? ' selected' : ''}>${ROLE_LABELS[r]}</option>`).join('');
+      const isEnqueteur = Array.isArray(a.specialisations) && a.specialisations.includes('enquete');
       tr.innerHTML = `
         <td>${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}</td>
         <td><span class="role-badge ${a.role}">${ROLE_LABELS[a.role] || a.role}</span></td>
         <td><select class="role-select" data-id="${a.id}">${options}</select></td>
-        <td><button class="btn-toggle-actif ${a.actif ? '' : 'inactif'}" data-id="${a.id}" data-actif="${a.actif}">${a.actif ? 'Actif' : 'Désactivé'}</button></td>`;
+        <td style="text-align:center;"><input type="checkbox" class="specialisation-check" data-id="${a.id}"${isEnqueteur ? ' checked' : ''}></td>
+        <td><button class="btn-toggle-actif ${a.actif ? '' : 'inactif'}" data-id="${a.id}" data-actif="${a.actif}">${a.actif ? 'Actif' : 'Désactivé'}</button></td>
+        <td><button class="btn-delete-agent" data-id="${a.id}" data-nom="${escapeHtml(a.prenom)} ${escapeHtml(a.nom)}">Supprimer</button></td>`;
       tbody.appendChild(tr);
     });
 
@@ -161,6 +164,15 @@ async function loadAgents() {
       });
     });
 
+    tbody.querySelectorAll('.specialisation-check').forEach(chk => {
+      chk.addEventListener('change', async () => {
+        const id = chk.dataset.id;
+        try {
+          await supaPatch('agents', `id=eq.${id}`, { specialisations: chk.checked ? ['enquete'] : [] }, true);
+        } catch (e) { console.error(e); }
+      });
+    });
+
     tbody.querySelectorAll('.btn-toggle-actif').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
@@ -168,6 +180,18 @@ async function loadAgents() {
         try {
           await supaPatch('agents', `id=eq.${id}`, { actif: !nowActif }, true);
           loadAgents();
+        } catch (e) { console.error(e); }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-delete-agent').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        if (!confirm(`Supprimer définitivement l'agent ${btn.dataset.nom} ? Ses amendes déjà émises seront conservées (sans agent associé).`)) return;
+        try {
+          await supaDelete('agents', `id=eq.${id}`);
+          loadAgents();
+          loadStats();
         } catch (e) { console.error(e); }
       });
     });

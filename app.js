@@ -30,6 +30,10 @@ const AGENT_ROLE_LABELS = {
 };
 const ADMIN_ROLES = ['co_gerant', 'gerant'];
 
+function hasSpecialisation(spec) {
+  return !!(currentUser && Array.isArray(currentUser.specialisations) && currentUser.specialisations.includes(spec));
+}
+
 let currentUser = null;
 let clockInterval = null;
 let articlesCache = [];
@@ -136,6 +140,7 @@ function showDashboard() {
   roleBadge.textContent = AGENT_ROLE_LABELS[currentUser.role] || currentUser.role;
   roleBadge.className = 'role-badge ' + currentUser.role;
   document.getElementById('gerance-link').style.display = ADMIN_ROLES.includes(currentUser.role) ? 'inline-flex' : 'none';
+  document.getElementById('dossiers-nav').style.display = (hasSpecialisation('enquete') || ADMIN_ROLES.includes(currentUser.role)) ? 'inline-flex' : 'none';
   updateClock();
   clockInterval = setInterval(updateClock, 1000);
   showGroup('casiers');
@@ -151,6 +156,7 @@ function showGroup(name) {
   if (name === 'code-penal') renderCodePenalTables();
   if (name === 'historique') loadHistorique();
   if (name === 'registre') loadRegistreCasiers();
+  if (name === 'dossiers') loadDossiers();
 }
 document.querySelectorAll('.snav').forEach(b => {
   b.addEventListener('click', () => showGroup(b.dataset.group));
@@ -328,6 +334,16 @@ document.getElementById('casier-modal-close').addEventListener('click', () => {
   document.getElementById('casier-modal-overlay').classList.add('hidden');
 });
 
+// ── Zoom sur la photo ──
+document.getElementById('casier-photo-img').addEventListener('click', (e) => {
+  if (!e.target.src) return;
+  document.getElementById('photo-zoom-img').src = e.target.src;
+  document.getElementById('photo-zoom-overlay').classList.remove('hidden');
+});
+document.getElementById('photo-zoom-overlay').addEventListener('click', () => {
+  document.getElementById('photo-zoom-overlay').classList.add('hidden');
+});
+
 // ── Photo de la fiche (collée au Ctrl+V) ──
 async function loadCasierPhoto() {
   const img = document.getElementById('casier-photo-img');
@@ -380,7 +396,7 @@ window.addEventListener('paste', async (e) => {
       const hint = document.getElementById('casier-photo-hint');
       hint.textContent = 'Enregistrement...';
       try {
-        const dataUrl = await resizeImageToDataUrl(file, 260);
+        const dataUrl = await resizeImageToDataUrl(file, 500);
         await supaUpsert('casier_photos', {
           ninja_char_key: selectedNinjaKey,
           photo_data: dataUrl,
@@ -655,6 +671,80 @@ function renderCodePenalTables() {
         </tbody>
       </table>`;
   }).join('');
+}
+
+// ── Dossiers d'enquête ──
+const DOSSIER_STATUT_LABELS = { ouvert: 'Ouvert', en_cours: 'En cours', clos: 'Clos' };
+
+document.getElementById('dossier-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const titre = document.getElementById('dossier-titre').value.trim();
+  if (!titre) return;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    await supaPost('dossiers_enquete', {
+      titre,
+      ninja_nom: document.getElementById('dossier-ninja').value.trim() || null,
+      description: document.getElementById('dossier-description').value.trim() || null,
+      statut: document.getElementById('dossier-statut').value,
+      created_by: currentUser.id
+    }, true);
+    document.getElementById('dossier-form').reset();
+    loadDossiers();
+  } catch (err) {
+    console.error(err);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+async function loadDossiers() {
+  const ul = document.getElementById('dossiers-list');
+  ul.innerHTML = '<li class="list-empty">Chargement...</li>';
+  try {
+    const rows = await supaGet('dossiers_enquete', 'select=*,agents(nom,prenom)&order=created_at.desc');
+    ul.innerHTML = '';
+    if (rows.length === 0) {
+      ul.innerHTML = '<li class="list-empty">Aucun dossier d\'enquête pour le moment</li>';
+      return;
+    }
+    rows.forEach(d => {
+      const li = document.createElement('li');
+      const date = new Date(d.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const auteur = d.agents ? `${d.agents.prenom} ${d.agents.nom}` : 'agent supprimé';
+      const statutOptions = Object.entries(DOSSIER_STATUT_LABELS)
+        .map(([v, l]) => `<option value="${v}"${d.statut === v ? ' selected' : ''}>${l}</option>`).join('');
+      li.innerHTML = `
+        <div class="infraction-item">
+          <div class="infraction-left">
+            <div class="infraction-titre">${escapeHtml(d.titre)}${d.ninja_nom ? ' — ' + escapeHtml(d.ninja_nom) : ''}</div>
+            <div class="infraction-meta">Ouvert le ${date} par ${escapeHtml(auteur)}</div>
+            ${d.description ? `<div class="infraction-meta">${escapeHtml(d.description)}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <select class="dossier-statut-select" data-id="${d.id}">${statutOptions}</select>
+            <button class="btn-delete-inf" data-id="${d.id}">Supprimer</button>
+          </div>
+        </div>`;
+      li.querySelector('.dossier-statut-select').addEventListener('change', async (ev) => {
+        try {
+          await supaPatch('dossiers_enquete', `id=eq.${d.id}`, { statut: ev.target.value, updated_at: new Date().toISOString() }, true);
+        } catch (err) { console.error(err); }
+      });
+      li.querySelector('.btn-delete-inf').addEventListener('click', async () => {
+        if (!confirm('Supprimer définitivement ce dossier ?')) return;
+        try {
+          await supaDelete('dossiers_enquete', `id=eq.${d.id}`);
+          loadDossiers();
+        } catch (err) { console.error(err); }
+      });
+      ul.appendChild(li);
+    });
+  } catch (e) {
+    console.error(e);
+    ul.innerHTML = '<li class="list-empty">Erreur de chargement des dossiers</li>';
+  }
 }
 
 initThemeToggle();

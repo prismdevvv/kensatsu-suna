@@ -178,13 +178,17 @@ table.code-table tr:hover td { background: rgba(53,65,77,.04); }
 #infractions-list { max-height: 320px; overflow-y: auto; }
 
 .casier-photo-wrap {
-  width: 60px; height: 60px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  width: 96px; height: 120px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
   border: 1px solid var(--paper-mid); background: rgba(53,65,77,.06);
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; line-height: 1.15; text-align: center; color: var(--text-light); padding: 3px;
+  font-size: 11px; line-height: 1.2; text-align: center; color: var(--text-light); padding: 4px;
 }
-.casier-photo { width: 100%; height: 100%; object-fit: cover; }
+.casier-photo { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: filter .15s; }
+.casier-photo:hover { filter: brightness(1.08); }
 body.dark .casier-photo-wrap { border-color: #33424f; background: rgba(255,255,255,.04); color: #9fb0bd; }
+
+.photo-zoom-overlay { cursor: zoom-out; }
+.photo-zoom-img { max-width: 90vw; max-height: 90vh; border-radius: 10px; box-shadow: 0 16px 48px rgba(0,0,0,.4); }
 
 .btn-delete-inf {
   margin-top: 6px; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--red-seal);

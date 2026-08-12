@@ -14,6 +14,7 @@ create table agents (
                 'gardien_provisoire','gardien_confirme','sergent','lieutenant',
                 'capitaine','commandant','co_gerant','gerant'
               )),
+  specialisations text[] not null default '{}',
   actif       boolean not null default true,
   created_at  timestamptz not null default now(),
   unique (nom, prenom)
@@ -67,6 +68,20 @@ create table config (
   cle     text primary key,
   valeur  text
 );
+
+-- Dossiers d'enquête, réservés aux agents avec la spécialisation 'enquete'
+-- (ou à la gérance) — indépendant des infractions/amendes.
+create table dossiers_enquete (
+  id           uuid primary key default gen_random_uuid(),
+  titre        text not null,
+  ninja_nom    text,
+  description  text,
+  statut       text not null default 'ouvert' check (statut in ('ouvert','en_cours','clos')),
+  created_by   uuid references agents(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index on dossiers_enquete (statut);
 
 create index on infractions (ninja_char_key);
 create index on infractions (article_id);
