@@ -81,9 +81,40 @@ let articlesCache = [];
 
 const loginThrottle = makeLoginThrottle('kensatsu_login_throttle');
 
+// --- Horaires de service (18h – 3h, comme l'hôpital seimei) ---
+function isServiceOpen() {
+  const now = new Date();
+  const totalMin = now.getHours() * 60 + now.getMinutes();
+  return totalMin >= 1080 || totalMin < 180; // 18h00 (1080) à 3h00 (180) — traverse minuit
+}
+
 function updateClock() {
   document.getElementById('clock').textContent =
     new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const open = isServiceOpen();
+  const statusCard = document.getElementById('server-status');
+  if (statusCard) {
+    const indicator = statusCard.querySelector('.status-indicator');
+    const text = statusCard.querySelector('span:last-child');
+    if (open) {
+      indicator.className = 'status-indicator online';
+      text.textContent = 'Prise de service ouverte (18h – 3h)';
+    } else {
+      indicator.className = 'status-indicator offline';
+      text.textContent = 'Hors horaires de service (18h – 3h)';
+    }
+  }
+
+  const btnService = document.getElementById('btn-service');
+  if (btnService && currentUser) {
+    if (open) {
+      btnService.disabled = false;
+    } else {
+      if (!enPoste) btnService.disabled = true;
+      if (enPoste) quitterPoste();
+    }
+  }
 }
 
 // --- Auth : onglets ---
@@ -222,7 +253,25 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 let enPoste = false;
 let posteId = null;
 
+// Heure de fermeture (3h00) la plus récente déjà passée — sert à purger
+// automatiquement les services que personne n'a quittés manuellement.
+function serviceCutoffISO() {
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setHours(3, 0, 0, 0);
+  if (now < cutoff) cutoff.setDate(cutoff.getDate() - 1);
+  return cutoff.toISOString();
+}
+
+async function sweepStaleServices() {
+  try {
+    const cutoff = serviceCutoffISO();
+    await supaPatch('postes', `actif=eq.true&debut=lt.${cutoff}`, { actif: false, fin: cutoff }, true);
+  } catch (e) { console.error(e); }
+}
+
 async function checkExistingPoste() {
+  await sweepStaleServices();
   try {
     const rows = await supaGet('postes', `agent_id=eq.${currentUser.id}&actif=eq.true`);
     if (rows.length > 0) {
@@ -287,6 +336,7 @@ async function loadServiceList() {
   const ul = document.getElementById('service-list');
   if (!ul) return;
   ul.innerHTML = '<li class="list-empty">Chargement...</li>';
+  await sweepStaleServices();
   try {
     const rows = await supaGet('postes', 'actif=eq.true&select=id,debut,agents(nom,prenom)&order=debut.asc');
     ul.innerHTML = '';
