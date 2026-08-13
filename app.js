@@ -337,7 +337,7 @@ async function loadServiceList() {
   ul.innerHTML = '<li class="list-empty">Chargement...</li>';
   await sweepStaleServices();
   try {
-    const rows = await supaGet('postes', 'actif=eq.true&select=id,debut,agents(nom,prenom)&order=debut.asc');
+    const rows = await supaGet('postes', 'actif=eq.true&select=id,debut,agents!postes_agent_id_fkey(nom,prenom)&order=debut.asc');
     ul.innerHTML = '';
     if (rows.length === 0) {
       ul.innerHTML = '<li class="list-empty">Aucun agent en service actuellement</li>';

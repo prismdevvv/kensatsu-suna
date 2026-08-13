@@ -369,7 +369,7 @@ async function loadServiceHistorique() {
     const { start, end } = getPeriodRange(document.getElementById('service-periode').value);
     const agentFilter = document.getElementById('service-agent').value;
 
-    let query = 'select=*,agents(nom,prenom)&order=debut.desc';
+    let query = 'select=*,agents!postes_agent_id_fkey(nom,prenom)&order=debut.desc';
     if (start) query += `&debut=gte.${start.toISOString()}`;
     if (end) query += `&debut=lt.${end.toISOString()}`;
     if (agentFilter !== 'all') query += `&agent_id=eq.${agentFilter}`;
@@ -473,7 +473,7 @@ async function loadServiceDetail() {
   try {
     const { start, end } = getPeriodRange(document.getElementById('service-periode').value);
     const agentFilter = document.getElementById('service-agent').value;
-    let query = 'select=*,agents(nom,prenom)&order=debut.desc&limit=100';
+    let query = 'select=*,agents!postes_agent_id_fkey(nom,prenom)&order=debut.desc&limit=100';
     if (start) query += `&debut=gte.${start.toISOString()}`;
     if (end) query += `&debut=lt.${end.toISOString()}`;
     if (agentFilter !== 'all') query += `&agent_id=eq.${agentFilter}`;
