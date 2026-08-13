@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gérance — Kensatsu de Sunagakure</title>
-  <link rel="stylesheet" href="style.css?v=17">
-  <link rel="stylesheet" href="admin.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="admin.css?v=18">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -153,6 +153,28 @@
                 </table>
               </div>
             </section>
+
+            <section class="panel-section">
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg> Gestion en direct</h3>
+              <p class="info-text">Mets un agent en service ou retire-le manuellement, quelle que soit l'heure.</p>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Agent</th><th>Statut</th><th>Depuis</th><th></th></tr></thead>
+                  <tbody id="postes-admin-body"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 12h16M4 19h10"/></svg> Détail des Services</h3>
+              <p class="info-text">Corrige le début/la fin d'un service, ou supprime une entrée erronée (filtres période/agent ci-dessus).</p>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead><tr><th>Agent</th><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th><th>Statut</th><th></th></tr></thead>
+                  <tbody id="service-detail-body"></tbody>
+                </table>
+              </div>
+            </section>
           </div>
 
           <!-- GROUPE AGENTS -->
@@ -187,7 +209,7 @@
     </div>
   </div>
 
-  <script src="common.js?v=17"></script>
-  <script src="admin.js?v=17"></script>
+  <script src="common.js?v=18"></script>
+  <script src="admin.js?v=18"></script>
 </body>
 </html>

@@ -66,6 +66,35 @@ body.dark #permissions-table th:last-child, body.dark #permissions-table td:last
 .filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 6px; }
 .filters .field { margin-bottom: 0; min-width: 180px; }
 
+.badge-actif { display: inline-flex; align-items: center; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-actif::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; margin-right: 5px; }
+.badge-actif.en-cours { background: rgba(46,125,50,.15); border: 1px solid rgba(46,125,50,.4); color: var(--green); }
+.badge-actif.termine { background: rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.15); color: var(--text-light); }
+body.dark .badge-actif.termine { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.15); color: #9fb0bd; }
+
+.btn-action {
+  padding: 5px 13px; border-radius: 7px; border: 1.5px solid var(--red-seal); background: transparent;
+  color: var(--red-seal); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.btn-action:hover { background: rgba(179,49,44,.1); transform: translateY(-1px); }
+.btn-action.mettre-poste { border-color: var(--green); color: var(--green); }
+.btn-action.mettre-poste:hover { background: rgba(46,125,50,.1); }
+
+.btn-sm.btn-poste-modifier, .btn-sm.btn-detail-valider { border-color: var(--gold); color: #8a6c1a; margin-right: 6px; }
+.btn-sm.btn-poste-delete, .btn-sm.btn-detail-annuler { border-color: var(--red-seal); color: var(--red-seal); }
+body.dark .btn-sm.btn-poste-modifier, body.dark .btn-sm.btn-detail-valider { color: #e0c268; }
+body.dark .btn-sm.btn-poste-delete, body.dark .btn-sm.btn-detail-annuler { color: #ff9d97; }
+
+.inline-input {
+  padding: 6px 9px; border-radius: 6px; border: 1.5px solid var(--paper-mid);
+  background: var(--cream); font-family: inherit; font-size: 12px; color: var(--text);
+}
+.inline-input:focus { outline: none; border-color: var(--red-seal); }
+body.dark .inline-input { background: #10161c; border-color: #33424f; color: #e6ebef; }
+
+.empty-row { text-align: center; color: var(--text-light); padding: 18px !important; }
+body.dark .empty-row { color: #9fb0bd; }
+
 .back-link { display: inline-block; margin-top: 18px; color: var(--text-light); font-size: 13px; text-decoration: none; transition: color .2s; }
 .back-link:hover { color: var(--red-seal); }
 body.dark .back-link { color: #9fb0bd; }

@@ -405,6 +405,167 @@ async function loadServiceHistorique() {
     });
     if (Object.keys(parAgent).length === 0) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-light);">Aucun service sur cette période</td></tr>';
   } catch (e) { console.error(e); }
+
+  await loadPostesGestion();
+  await loadServiceDetail();
+}
+
+// --- Gestion en direct (mettre/retirer un agent du service, comme seimei) ---
+async function loadPostesGestion() {
+  const tbody = document.getElementById('postes-admin-body');
+  if (!tbody) return;
+  try {
+    const agentsList = await supaGet('agents', 'select=id,nom,prenom&order=nom.asc,prenom.asc');
+    const postesActifs = await supaGet('postes', 'actif=eq.true&select=id,agent_id,debut');
+    const posteMap = {};
+    postesActifs.forEach(p => { posteMap[p.agent_id] = p; });
+
+    tbody.innerHTML = '';
+    agentsList.forEach(a => {
+      const poste = posteMap[a.id];
+      const enPoste = !!poste;
+      const depuis = enPoste ? new Date(poste.debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${agentChip(a.prenom, a.nom)}</td>
+        <td>${enPoste ? '<span class="badge-actif en-cours">En service</span>' : '<span class="badge-actif termine">Hors service</span>'}</td>
+        <td>${depuis}</td>
+        <td>${enPoste
+          ? `<button class="btn-action retirer-poste" data-poste-id="${poste.id}">Retirer du service</button>`
+          : `<button class="btn-action mettre-poste" data-agent-id="${a.id}">Mettre en service</button>`}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.retirer-poste').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await supaPatch('postes', `id=eq.${btn.dataset.posteId}`, { actif: false, fin: new Date().toISOString(), force_par: currentUser.id }, true);
+          await loadServiceHistorique();
+        } catch (e) { console.error(e); btn.disabled = false; }
+      });
+    });
+
+    tbody.querySelectorAll('.mettre-poste').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await supaPost('postes', { agent_id: btn.dataset.agentId, debut: new Date().toISOString(), actif: true, force_par: currentUser.id }, true);
+          await loadServiceHistorique();
+        } catch (e) { console.error(e); btn.disabled = false; }
+      });
+    });
+  } catch (e) { console.error(e); }
+}
+
+// --- Détail des services (correction début/fin, suppression, comme seimei) ---
+let serviceDetailCache = [];
+let serviceDetailEditingId = null;
+
+function toDatetimeLocal(date) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+async function loadServiceDetail() {
+  const tbody = document.getElementById('service-detail-body');
+  if (!tbody) return;
+  try {
+    const { start, end } = getPeriodRange(document.getElementById('service-periode').value);
+    const agentFilter = document.getElementById('service-agent').value;
+    let query = 'select=*,agents(nom,prenom)&order=debut.desc&limit=100';
+    if (start) query += `&debut=gte.${start.toISOString()}`;
+    if (end) query += `&debut=lt.${end.toISOString()}`;
+    if (agentFilter !== 'all') query += `&agent_id=eq.${agentFilter}`;
+    serviceDetailCache = await supaGet('postes', query);
+    serviceDetailEditingId = null;
+    renderServiceDetail();
+  } catch (e) { console.error(e); }
+}
+
+function renderServiceDetail() {
+  const tbody = document.getElementById('service-detail-body');
+  const postes = serviceDetailCache;
+  tbody.innerHTML = '';
+  if (postes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-row">Aucun service enregistré sur cette période</td></tr>';
+    return;
+  }
+
+  postes.forEach(p => {
+    const nomAgent = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'Agent supprimé';
+    const debut = new Date(p.debut);
+    const fin = p.fin ? new Date(p.fin) : null;
+    const dureeMin = Math.round(((fin || new Date()) - debut) / 60000);
+    const tr = document.createElement('tr');
+
+    if (serviceDetailEditingId === p.id) {
+      tr.innerHTML = `
+        <td>${escapeHtml(nomAgent)}</td>
+        <td colspan="2"><input type="datetime-local" class="inline-input detail-edit-debut" value="${toDatetimeLocal(debut)}"></td>
+        <td><input type="datetime-local" class="inline-input detail-edit-fin" value="${fin ? toDatetimeLocal(fin) : ''}"></td>
+        <td colspan="2"><span class="info-text" style="margin:0">Vide = service en cours</span></td>
+        <td>
+          <button class="btn-sm btn-detail-valider" data-id="${p.id}">Valider</button>
+          <button class="btn-sm btn-detail-annuler">Annuler</button>
+        </td>`;
+    } else {
+      const date = debut.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const heureDebut = debut.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const heureFin = fin ? fin.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
+      const duree = formatDuree(dureeMin * 60000);
+      const statut = p.actif ? '<span class="badge-actif en-cours">En cours</span>' : '<span class="badge-actif termine">Terminé</span>';
+      tr.innerHTML = `
+        <td>${escapeHtml(nomAgent)}</td>
+        <td>${date}</td>
+        <td>${heureDebut}</td>
+        <td>${heureFin}</td>
+        <td>${duree}</td>
+        <td>${statut}</td>
+        <td>
+          <button class="btn-sm btn-poste-modifier" data-id="${p.id}">Modifier</button>
+          <button class="btn-sm btn-poste-delete" data-id="${p.id}" data-nom="${escapeHtml(nomAgent)}" data-duree="${duree}">Supprimer</button>
+        </td>`;
+    }
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.btn-poste-modifier').forEach(btn => {
+    btn.addEventListener('click', () => { serviceDetailEditingId = btn.dataset.id; renderServiceDetail(); });
+  });
+  tbody.querySelectorAll('.btn-detail-annuler').forEach(btn => {
+    btn.addEventListener('click', () => { serviceDetailEditingId = null; renderServiceDetail(); });
+  });
+  tbody.querySelectorAll('.btn-detail-valider').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tr = btn.closest('tr');
+      const debutVal = tr.querySelector('.detail-edit-debut').value;
+      const finVal = tr.querySelector('.detail-edit-fin').value;
+      if (!debutVal) { alert('La date de début est obligatoire.'); return; }
+      const nouveauDebut = new Date(debutVal);
+      const nouveauFin = finVal ? new Date(finVal) : null;
+      if (nouveauFin && nouveauFin <= nouveauDebut) { alert('La fin doit être après le début.'); return; }
+      btn.disabled = true;
+      try {
+        await supaPatch('postes', `id=eq.${btn.dataset.id}`, {
+          debut: nouveauDebut.toISOString(),
+          fin: nouveauFin ? nouveauFin.toISOString() : null,
+          actif: !nouveauFin
+        }, true);
+        await loadServiceHistorique();
+      } catch (e) { console.error(e); alert('Erreur lors de la modification du service.'); btn.disabled = false; }
+    });
+  });
+  tbody.querySelectorAll('.btn-poste-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Supprimer ce service de ${btn.dataset.nom} (${btn.dataset.duree}) ?\n\nAction définitive.`)) return;
+      btn.disabled = true;
+      try {
+        await supaDelete('postes', `id=eq.${btn.dataset.id}`);
+        await loadServiceHistorique();
+      } catch (e) { console.error(e); btn.disabled = false; }
+    });
+  });
 }
 
 // --- Tableau des permissions (édition par grade) ---
