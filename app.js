@@ -81,11 +81,12 @@ let articlesCache = [];
 
 const loginThrottle = makeLoginThrottle('kensatsu_login_throttle');
 
-// --- Horaires de service (18h – 3h, comme l'hôpital seimei) ---
+// --- Horaires de service (18h30 – 3h, identique à l'hôpital seimei) ---
 function isServiceOpen() {
   const now = new Date();
   const totalMin = now.getHours() * 60 + now.getMinutes();
-  return totalMin >= 1080 || totalMin < 180; // 18h00 (1080) à 3h00 (180) — traverse minuit
+  // 18h30 (1110) à 3h00 (180) — traverse minuit
+  return totalMin >= 1110 || totalMin < 180;
 }
 
 function updateClock() {
@@ -94,26 +95,23 @@ function updateClock() {
 
   const open = isServiceOpen();
   const statusCard = document.getElementById('server-status');
-  if (statusCard) {
-    const indicator = statusCard.querySelector('.status-indicator');
-    const text = statusCard.querySelector('span:last-child');
-    if (open) {
-      indicator.className = 'status-indicator online';
-      text.textContent = 'Prise de service ouverte (18h – 3h)';
-    } else {
-      indicator.className = 'status-indicator offline';
-      text.textContent = 'Hors horaires de service (18h – 3h)';
-    }
+  const indicator = statusCard.querySelector('.status-indicator');
+  const text = statusCard.querySelector('span:last-child');
+
+  if (open) {
+    indicator.className = 'status-indicator online';
+    text.textContent = 'La kensatsu est ouverte — Service actif';
+  } else {
+    indicator.className = 'status-indicator offline';
+    text.textContent = 'Le village est endormi — Hors horaires de service';
   }
 
   const btnService = document.getElementById('btn-service');
-  if (btnService && currentUser) {
-    if (open) {
-      btnService.disabled = false;
-    } else {
-      if (!enPoste) btnService.disabled = true;
-      if (enPoste) quitterPoste();
-    }
+  if (open && currentUser) {
+    btnService.disabled = false;
+  } else {
+    if (!enPoste) btnService.disabled = true;
+    if (enPoste && !open) quitterPoste();
   }
 }
 
@@ -307,11 +305,12 @@ document.getElementById('btn-service').addEventListener('click', async (e) => {
     if (enPoste) await quitterPoste();
     else await prendrePoste();
   } finally {
-    e.target.disabled = false;
+    updateClock(); // remet l'état disabled correct selon les horaires
   }
 });
 
 async function prendrePoste() {
+  if (!isServiceOpen()) return;
   try {
     const result = await supaPost('postes', { agent_id: currentUser.id, debut: new Date().toISOString(), actif: true });
     posteId = result[0].id;
