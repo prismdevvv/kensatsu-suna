@@ -359,23 +359,158 @@ async function loadServiceList() {
 // ── Plaintes ──
 const PLAINTE_STATUT_LABELS = { nouvelle: 'Nouvelle', en_cours: 'En cours', traitee: 'Traitée', classee: 'Classée' };
 
+// --- Recherche de ninja réutilisable (plaignant / accusé) ---
+function wireNinjaPicker(inputId, resultsId, onSelect) {
+  let timer = null;
+  const input = document.getElementById(inputId);
+  const results = document.getElementById(resultsId);
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) { results.classList.add('hidden'); results.innerHTML = ''; return; }
+    timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${ZENKAI_API}/api/characters?sort=name&order=asc&limit=15&search=${encodeURIComponent(q)}`);
+        const body = await res.json();
+        const chars = body.data || [];
+        results.innerHTML = '';
+        if (chars.length === 0) {
+          results.innerHTML = '<li class="search-result-empty">Aucun ninja trouvé</li>';
+        } else {
+          chars.forEach(c => {
+            const d = (c.divisions && c.divisions[0]) || null;
+            const meta = `${rankLabel(c.rank)}${d ? ' · ' + d.type : ''}`;
+            const li = document.createElement('li');
+            li.className = 'search-result';
+            li.innerHTML = `<strong>${escapeHtml(c.name)}</strong> <span class="infraction-meta">${escapeHtml(meta)}</span>`;
+            li.addEventListener('click', () => {
+              onSelect(c);
+              results.classList.add('hidden');
+            });
+            results.appendChild(li);
+          });
+        }
+        results.classList.remove('hidden');
+      } catch (e) { console.error(e); }
+    }, 300);
+  });
+}
+
+let plaignantSelectionne = null;
+let accuseSelectionne = null;
+
+wireNinjaPicker('plainte-plaignant-search', 'plainte-plaignant-results', (c) => {
+  plaignantSelectionne = c;
+  document.getElementById('plainte-plaignant-search').value = c.name;
+  const grade = document.getElementById('plainte-plaignant-grade');
+  grade.classList.remove('hidden');
+  grade.innerHTML = `<div class="ap-row"><span class="ap-label">Grade</span><strong>${escapeHtml(rankLabel(c.rank))}</strong></div>`;
+});
+wireNinjaPicker('plainte-accuse-search', 'plainte-accuse-results', (c) => {
+  accuseSelectionne = c;
+  document.getElementById('plainte-accuse-search').value = c.name;
+  const grade = document.getElementById('plainte-accuse-grade');
+  grade.classList.remove('hidden');
+  grade.innerHTML = `<div class="ap-row"><span class="ap-label">Grade</span><strong>${escapeHtml(rankLabel(c.rank))}</strong></div>`;
+});
+
+// --- Faits reprochés (choix multiple d'articles) ---
+let plainteArticlesSelectionnes = [];
+
+document.getElementById('plainte-articles-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  const results = document.getElementById('plainte-articles-results');
+  if (!q) { results.classList.add('hidden'); results.innerHTML = ''; return; }
+  const matches = articlesCache.filter(a =>
+    a.code.toLowerCase().includes(q) || a.libelle.toLowerCase().includes(q)
+  ).slice(0, 15);
+  results.innerHTML = '';
+  if (matches.length === 0) {
+    results.innerHTML = '<li class="search-result-empty">Aucun article trouvé</li>';
+  } else {
+    matches.forEach(a => {
+      const li = document.createElement('li');
+      li.className = 'search-result';
+      li.innerHTML = `<strong>${escapeHtml(a.code)}</strong> — ${escapeHtml(a.libelle)}`;
+      li.addEventListener('click', () => {
+        if (!plainteArticlesSelectionnes.find(x => x.id === a.id)) {
+          plainteArticlesSelectionnes.push(a);
+          renderPlainteArticlesSelectionnes();
+        }
+        document.getElementById('plainte-articles-search').value = '';
+        results.classList.add('hidden');
+      });
+      results.appendChild(li);
+    });
+  }
+  results.classList.remove('hidden');
+});
+
+function renderPlainteArticlesSelectionnes() {
+  const wrap = document.getElementById('plainte-articles-selected');
+  wrap.innerHTML = plainteArticlesSelectionnes.map(a =>
+    `<span class="tag tag-recidive1 plainte-article-chip" data-id="${a.id}" title="Cliquer pour retirer">${escapeHtml(a.code)} ✕</span>`
+  ).join('');
+  wrap.querySelectorAll('.plainte-article-chip').forEach(el => {
+    el.addEventListener('click', () => {
+      plainteArticlesSelectionnes = plainteArticlesSelectionnes.filter(a => a.id !== el.dataset.id);
+      renderPlainteArticlesSelectionnes();
+    });
+  });
+}
+
+// --- Photo jointe ---
+let plaintePhotoDataUrl = null;
+
+document.getElementById('plainte-photo-wrap').addEventListener('click', () => {
+  document.getElementById('photo-file-input').click();
+});
+
+function resetPlainteForm() {
+  document.getElementById('plainte-form').reset();
+  plaignantSelectionne = null;
+  accuseSelectionne = null;
+  plainteArticlesSelectionnes = [];
+  plaintePhotoDataUrl = null;
+  document.getElementById('plainte-plaignant-grade').classList.add('hidden');
+  document.getElementById('plainte-accuse-grade').classList.add('hidden');
+  document.getElementById('plainte-articles-results').classList.add('hidden');
+  document.getElementById('plainte-articles-selected').innerHTML = '';
+  document.getElementById('plainte-photo-img').classList.add('hidden');
+  document.getElementById('plainte-photo-hint').classList.remove('hidden');
+  document.getElementById('plainte-photo-hint').textContent = 'Cliquer ou coller (Ctrl+V)';
+}
+
 document.getElementById('plainte-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const plaignant = document.getElementById('plainte-plaignant').value.trim();
+  const statusEl = document.getElementById('plainte-status');
+  statusEl.textContent = '';
+  const plaignantNom = document.getElementById('plainte-plaignant-search').value.trim();
   const motif = document.getElementById('plainte-motif').value.trim();
-  if (!plaignant || !motif) return;
+  if (!plaignantNom || !motif) return;
+  const moment = document.getElementById('plainte-moment').value;
+  const accuseNom = document.getElementById('plainte-accuse-search').value.trim();
+
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   try {
     await supaPost('plaintes', {
-      plaignant_nom: plaignant,
-      mis_en_cause_nom: document.getElementById('plainte-miseencause').value.trim() || null,
+      plaignant_nom: plaignantNom,
+      plaignant_char_key: plaignantSelectionne ? plaignantSelectionne.charKey : null,
+      plaignant_grade: plaignantSelectionne ? rankLabel(plaignantSelectionne.rank) : null,
+      mis_en_cause_nom: accuseNom || null,
+      accuse_char_key: accuseSelectionne ? accuseSelectionne.charKey : null,
+      accuse_grade: accuseSelectionne ? rankLabel(accuseSelectionne.rank) : null,
+      moment_faits: moment ? new Date(moment).toISOString() : null,
+      article_ids: plainteArticlesSelectionnes.map(a => a.id),
       motif,
+      photo_data: plaintePhotoDataUrl,
       created_by: currentUser.id
     }, true);
-    document.getElementById('plainte-form').reset();
+    resetPlainteForm();
     loadPlaintes();
   } catch (err) {
+    statusEl.textContent = "Erreur lors de l'enregistrement.";
     console.error(err);
   } finally {
     submitBtn.disabled = false;
@@ -404,13 +539,23 @@ async function loadPlaintes() {
       const auteur = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
       const statutOptions = Object.entries(PLAINTE_STATUT_LABELS)
         .map(([v, l]) => `<option value="${v}"${p.statut === v ? ' selected' : ''}>${l}</option>`).join('');
+      const articlesLabels = (p.article_ids || [])
+        .map(id => articlesCache.find(a => a.id === id))
+        .filter(Boolean)
+        .map(a => `<span class="tag tag-impaye">${escapeHtml(a.code)}</span>`).join('');
+      const momentTxt = p.moment_faits
+        ? new Date(p.moment_faits).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : null;
+      const photoHtml = p.photo_data ? `<img class="dossier-photo-thumb plainte-photo-view" src="${p.photo_data}" alt="Preuve" style="margin-top:6px;">` : '';
       li.innerHTML = `
         <div class="infraction-item">
           <div class="infraction-left">
-            <div class="infraction-titre">${escapeHtml(p.plaignant_nom)}${p.mis_en_cause_nom ? ' contre ' + escapeHtml(p.mis_en_cause_nom) : ''}</div>
-            <div class="infraction-meta">${date} · reçue par ${escapeHtml(auteur)}</div>
+            <div class="infraction-titre">${escapeHtml(p.plaignant_nom)}${p.plaignant_grade ? ' (' + escapeHtml(p.plaignant_grade) + ')' : ''}${p.mis_en_cause_nom ? ' contre ' + escapeHtml(p.mis_en_cause_nom) : ''}${p.accuse_grade ? ' (' + escapeHtml(p.accuse_grade) + ')' : ''}</div>
+            <div class="infraction-meta">${date} · reçue par ${escapeHtml(auteur)}${momentTxt ? ' · faits du ' + momentTxt : ''}</div>
             <div class="infraction-meta">${escapeHtml(p.motif)}</div>
+            ${articlesLabels ? `<div class="infraction-badges">${articlesLabels}</div>` : ''}
             <div class="infraction-badges"><span class="tag plainte-statut-tag ${p.statut}">${PLAINTE_STATUT_LABELS[p.statut]}</span></div>
+            ${photoHtml}
           </div>
           <div style="text-align:right;flex-shrink:0;">
             <select class="plainte-statut-select" data-id="${p.id}">${statutOptions}</select>
@@ -423,6 +568,13 @@ async function loadPlaintes() {
           loadPlaintes();
         } catch (err) { console.error(err); }
       });
+      const photoImg = li.querySelector('.plainte-photo-view');
+      if (photoImg) {
+        photoImg.addEventListener('click', () => {
+          document.getElementById('photo-zoom-img').src = p.photo_data;
+          document.getElementById('photo-zoom-overlay').classList.remove('hidden');
+        });
+      }
       const delBtn = li.querySelector('.btn-delete-inf');
       if (delBtn) {
         delBtn.addEventListener('click', async () => {
@@ -717,6 +869,24 @@ async function handleIncomingImageFile(file) {
     } catch (err) {
       console.error(err);
       if (zone) zone.textContent = 'Erreur';
+    }
+    return true;
+  }
+
+  const plaintesPanel = document.querySelector('.group-panel[data-group="plaintes"]');
+  if (plaintesPanel && plaintesPanel.classList.contains('active')) {
+    const hint = document.getElementById('plainte-photo-hint');
+    hint.classList.remove('hidden');
+    hint.textContent = 'Chargement...';
+    try {
+      plaintePhotoDataUrl = await resizeImageToDataUrl(file, 500);
+      const img = document.getElementById('plainte-photo-img');
+      img.src = plaintePhotoDataUrl;
+      img.classList.remove('hidden');
+      hint.classList.add('hidden');
+    } catch (err) {
+      console.error(err);
+      hint.textContent = 'Erreur, réessaie.';
     }
     return true;
   }

@@ -102,6 +102,39 @@ create table dossier_notes (
 );
 create index on dossier_notes (dossier_id);
 
+-- Prise de service (comme seimei) — ouverte 18h30-3h, cf. app.js.
+create table postes (
+  id          uuid primary key default gen_random_uuid(),
+  agent_id    uuid references agents(id) on delete set null,
+  debut       timestamptz not null default now(),
+  fin         timestamptz,
+  actif       boolean not null default true,
+  force_par   uuid references agents(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+create index on postes (agent_id);
+create index on postes (actif);
+
+-- Plaintes déposées par un ninja contre un autre.
+create table plaintes (
+  id                 uuid primary key default gen_random_uuid(),
+  plaignant_nom      text not null,
+  plaignant_char_key text,
+  plaignant_grade    text,
+  mis_en_cause_nom   text,
+  accuse_char_key    text,
+  accuse_grade       text,
+  moment_faits       timestamptz,
+  article_ids        uuid[] not null default '{}',
+  motif              text not null,
+  photo_data         text,
+  statut             text not null default 'nouvelle' check (statut in ('nouvelle','en_cours','traitee','classee')),
+  created_by         uuid references agents(id) on delete set null,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now()
+);
+create index on plaintes (statut);
+
 create index on infractions (ninja_char_key);
 create index on infractions (article_id);
 create index on infractions (agent_id);

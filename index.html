@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=20">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -142,10 +142,44 @@
               <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6Z"/><path d="M15 3v3h3"/><path d="M9 12h6M9 15.5h6M9 8.5h3"/></svg> Registre des Plaintes</h3>
               <p class="info-text">Enregistre une plainte déposée par un ninja, puis suis son traitement.</p>
               <form id="plainte-form" class="form-grid">
-                <input type="text" id="plainte-plaignant" placeholder="Nom du plaignant" maxlength="80" required>
-                <input type="text" id="plainte-miseencause" placeholder="Mis en cause (optionnel)" maxlength="80">
-                <textarea id="plainte-motif" placeholder="Motif de la plainte" rows="3" required></textarea>
+                <div class="form-label">Plaignant</div>
+                <div class="article-search-wrap">
+                  <svg class="article-search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <input type="text" id="plainte-plaignant-search" placeholder="Rechercher le plaignant parmi les ninjas..." maxlength="80" autocomplete="off" required>
+                </div>
+                <ul id="plainte-plaignant-results" class="search-results hidden"></ul>
+                <div id="plainte-plaignant-grade" class="article-preview hidden"></div>
+
+                <div class="form-label">Accusé (optionnel)</div>
+                <div class="article-search-wrap">
+                  <svg class="article-search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <input type="text" id="plainte-accuse-search" placeholder="Rechercher l'accusé parmi les ninjas..." maxlength="80" autocomplete="off">
+                </div>
+                <ul id="plainte-accuse-results" class="search-results hidden"></ul>
+                <div id="plainte-accuse-grade" class="article-preview hidden"></div>
+
+                <div class="form-label">Moment des faits</div>
+                <input type="datetime-local" id="plainte-moment">
+
+                <div class="form-label">Faits reprochés</div>
+                <div class="article-search-wrap">
+                  <svg class="article-search-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <input type="text" id="plainte-articles-search" placeholder="Rechercher un délit/crime à ajouter..." autocomplete="off">
+                </div>
+                <ul id="plainte-articles-results" class="search-results hidden"></ul>
+                <div id="plainte-articles-selected" class="infraction-badges"></div>
+
+                <div class="form-label">Résumé des faits</div>
+                <textarea id="plainte-motif" placeholder="Décris les faits reprochés..." rows="4" required></textarea>
+
+                <div class="form-label">Image (optionnel)</div>
+                <div class="casier-photo-wrap" id="plainte-photo-wrap" style="width:120px;height:96px;" title="Cliquer ou coller (Ctrl+V)">
+                  <img id="plainte-photo-img" class="casier-photo hidden" alt="Photo jointe">
+                  <div id="plainte-photo-hint" class="casier-photo-hint">Cliquer ou coller (Ctrl+V)</div>
+                </div>
+
                 <button type="submit" class="btn-primary">Enregistrer la plainte</button>
+                <p id="plainte-status" class="error"></p>
               </form>
               <div class="form-grid" style="margin-top:4px;">
                 <div class="search-filters">
@@ -312,7 +346,7 @@
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=19"></script>
-  <script src="app.js?v=19"></script>
+  <script src="common.js?v=20"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>

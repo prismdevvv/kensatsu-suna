@@ -160,6 +160,9 @@ h3 .ico { color: var(--red-seal); filter: drop-shadow(0 1px 1px rgba(0,0,0,.08))
 .form-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
 .form-check input { width: auto; accent-color: var(--red-seal); }
 
+.form-label { font-size: 12px; font-weight: 700; color: var(--steel); letter-spacing: .02em; text-transform: uppercase; margin: 4px 0 -5px; }
+body.dark .form-label { color: #c9d3db; }
+
 .article-search-wrap { position: relative; }
 .article-search-ico { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
 .article-search-wrap input { padding-left: 36px !important; }

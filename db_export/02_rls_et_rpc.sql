@@ -18,6 +18,8 @@ alter table config               enable row level security;
 alter table casier_photos        enable row level security;
 alter table dossiers_enquete      enable row level security;
 alter table dossier_photos        enable row level security;
+alter table postes                enable row level security;
+alter table plaintes              enable row level security;
 alter table dossier_notes         enable row level security;
 
 -- agents : anon peut lire/écrire (nécessaire pour inscription et
@@ -57,6 +59,12 @@ create policy "anon_all_dossier_photos" on dossier_photos for all to anon using 
 
 -- dossier_notes : anon peut tout faire (journal d'enquête).
 create policy "anon_all_dossier_notes" on dossier_notes for all to anon using (true) with check (true);
+
+-- postes : anon peut tout faire (prise de service).
+create policy "anon_all_postes" on postes for all to anon using (true) with check (true);
+
+-- plaintes : anon peut tout faire.
+create policy "anon_all_plaintes" on plaintes for all to anon using (true) with check (true);
 
 -- --- Fonction de connexion : compare le sceau côté serveur et ne
 -- renvoie jamais sa valeur.
