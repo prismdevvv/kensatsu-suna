@@ -335,6 +335,19 @@ body.dark .statut-select-classee { background-color: rgba(255,255,255,.08); colo
 body.dark .dossier-folder { background: #10161c; border-color: #33424f; }
 body.dark .dossier-folder:hover { border-color: var(--red-seal); background: rgba(179,49,44,.1); }
 
+/* Registre des plaintes — accordéon */
+.plainte-chevron { color: var(--text-light); flex-shrink: 0; transition: transform .18s; }
+.plainte-row.open .plainte-chevron { transform: rotate(180deg); }
+.plainte-row.open { border-color: var(--red-seal); border-left-color: var(--red-seal); background: rgba(179,49,44,.05); }
+.plainte-detail {
+  padding: 14px 16px 16px 16px; margin-top: -6px; margin-bottom: 8px;
+  border: 1px solid var(--paper-mid); border-top: none; border-radius: 0 0 10px 10px;
+  background: var(--paper); animation: plainte-detail-in .15s ease;
+}
+@keyframes plainte-detail-in { from { opacity: 0; } to { opacity: 1; } }
+body.dark .plainte-detail { background: #0c1116; border-color: #33424f; }
+.plainte-detail select.plainte-statut-select { margin-bottom: 10px; }
+
 .dossier-gallery { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .dossier-photo-item { position: relative; }
 .dossier-photo-thumb { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; cursor: zoom-in; border: 1px solid var(--paper-mid); transition: transform .15s, box-shadow .15s; display: block; }

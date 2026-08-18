@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=22">
+  <link rel="stylesheet" href="style.css?v=23">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -341,47 +341,12 @@
     </div>
   </div>
 
-  <!-- Modal Plainte -->
-  <div id="plainte-modal-overlay" class="modal-overlay hidden">
-    <div class="modal casier-modal">
-      <div class="dossier-head">
-        <div>
-          <div class="infraction-titre" id="plainte-modal-titre"></div>
-          <div class="infraction-meta" id="plainte-modal-meta"></div>
-        </div>
-        <select id="plainte-modal-statut" class="statut-select" style="margin-left:auto;">
-          <option value="nouvelle">Nouvelle</option>
-          <option value="en_cours">En cours</option>
-          <option value="traitee">Traitée</option>
-          <option value="classee">Classée</option>
-        </select>
-      </div>
-
-      <div class="list-box" style="margin-top:12px;">
-        <h4>Plaignant</h4>
-        <p class="info-text" id="plainte-modal-plaignant" style="margin-bottom:8px;"></p>
-        <h4>Accusé(s)</h4>
-        <p class="info-text" id="plainte-modal-accuse" style="margin-bottom:8px;"></p>
-        <h4>Faits reprochés</h4>
-        <div class="infraction-badges" id="plainte-modal-articles" style="margin-bottom:8px;"></div>
-        <h4>Résumé des faits</h4>
-        <p class="info-text" id="plainte-modal-motif" style="margin-bottom:8px;"></p>
-        <div id="plainte-modal-photo-wrap"></div>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" id="plainte-delete-btn" class="btn-delete-inf" style="margin-top:0;">Supprimer la plainte</button>
-        <button type="button" id="plainte-modal-close" class="btn-sm">Fermer</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Zoom photo -->
   <div id="photo-zoom-overlay" class="modal-overlay hidden">
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=22"></script>
-  <script src="app.js?v=22"></script>
+  <script src="common.js?v=23"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>

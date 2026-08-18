@@ -531,7 +531,7 @@ document.getElementById('plainte-form').addEventListener('submit', async (e) => 
 document.getElementById('plainte-statut-filtre').addEventListener('change', () => loadPlaintes());
 
 let plaintesCache = [];
-let openPlainteId = null;
+let openPlaintesIds = new Set();
 
 async function loadPlaintes() {
   const ul = document.getElementById('plaintes-list');
@@ -548,20 +548,67 @@ async function loadPlaintes() {
       ul.innerHTML = '<li class="list-empty">Aucune plainte enregistrée</li>';
       return;
     }
+    const wasOpen = new Set(openPlaintesIds);
     rows.forEach(p => {
       const li = document.createElement('li');
       const date = new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const titre = p.plaignant_nom + (p.mis_en_cause_nom ? ' contre ' + p.mis_en_cause_nom : '');
-      li.className = 'dossier-folder';
+      const auteur = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
+      const momentTxt = p.moment_faits
+        ? new Date(p.moment_faits).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : 'non renseigné';
+      let accuseTxt;
+      if (Array.isArray(p.accuses) && p.accuses.length > 0) {
+        accuseTxt = p.accuses.map(a => `${a.nom} (${a.grade})`).join(', ');
+      } else {
+        accuseTxt = p.mis_en_cause_nom ? p.mis_en_cause_nom + (p.accuse_grade ? ` (${p.accuse_grade})` : '') : 'Non renseigné';
+      }
+      const articlesLabels = (p.article_ids || [])
+        .map(aid => articlesCache.find(a => a.id === aid))
+        .filter(Boolean)
+        .map(a => `<span class="tag tag-impaye">${escapeHtml(a.code)} — ${escapeHtml(a.libelle)}</span>`).join('');
+      const photoHtml = p.photo_data
+        ? `<h4>Photo</h4><img src="${p.photo_data}" class="dossier-photo-thumb plainte-photo-view" data-photo="${p.photo_data}" style="width:110px;height:90px;cursor:zoom-in;">`
+        : '';
+      const deleteBtnHtml = can('supprimer_infraction')
+        ? `<button type="button" class="btn-delete-inf plainte-delete-btn" data-id="${p.id}" style="margin-top:0;">Supprimer la plainte</button>`
+        : '';
+      const isOpen = wasOpen.has(p.id);
+
+      li.className = 'dossier-folder plainte-row' + (isOpen ? ' open' : '');
+      li.dataset.id = p.id;
       li.innerHTML = `
         <span class="dossier-folder-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6Z"/><path d="M15 3v3h3"/><path d="M9 12h6M9 15.5h6M9 8.5h3"/></svg></span>
         <div class="dossier-folder-info">
           <div class="infraction-titre">${escapeHtml(titre)}</div>
           <div class="infraction-meta">${date}</div>
         </div>
-        <span class="statut-pill statut-${p.statut}"><span class="statut-dot"></span>${PLAINTE_STATUT_LABELS[p.statut]}</span>`;
-      li.addEventListener('click', () => openPlainteModal(p.id));
+        <span class="statut-pill statut-${p.statut}"><span class="statut-dot"></span>${PLAINTE_STATUT_LABELS[p.statut]}</span>
+        <svg class="plainte-chevron ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
       ul.appendChild(li);
+
+      const detail = document.createElement('li');
+      detail.className = 'plainte-detail' + (isOpen ? '' : ' hidden');
+      detail.dataset.detailFor = p.id;
+      detail.innerHTML = `
+        <p class="info-text" style="margin-bottom:8px;">Reçue le ${date} par ${escapeHtml(auteur)} · faits du ${momentTxt}</p>
+        <select class="statut-select plainte-statut-select statut-select-${p.statut}" data-id="${p.id}">
+          <option value="nouvelle" ${p.statut === 'nouvelle' ? 'selected' : ''}>Nouvelle</option>
+          <option value="en_cours" ${p.statut === 'en_cours' ? 'selected' : ''}>En cours</option>
+          <option value="traitee" ${p.statut === 'traitee' ? 'selected' : ''}>Traitée</option>
+          <option value="classee" ${p.statut === 'classee' ? 'selected' : ''}>Classée</option>
+        </select>
+        <h4>Plaignant</h4>
+        <p class="info-text" style="margin-bottom:8px;">${escapeHtml(p.plaignant_nom)}${p.plaignant_grade ? ` (${escapeHtml(p.plaignant_grade)})` : ''}</p>
+        <h4>Accusé(s)</h4>
+        <p class="info-text" style="margin-bottom:8px;">${escapeHtml(accuseTxt)}</p>
+        <h4>Faits reprochés</h4>
+        <div class="infraction-badges" style="margin-bottom:8px;">${articlesLabels || '<span class="infraction-meta">Aucun article renseigné</span>'}</div>
+        <h4>Résumé des faits</h4>
+        <p class="info-text" style="margin-bottom:8px;">${escapeHtml(p.motif)}</p>
+        ${photoHtml}
+        ${deleteBtnHtml}`;
+      ul.appendChild(detail);
     });
   } catch (e) {
     console.error(e);
@@ -569,72 +616,42 @@ async function loadPlaintes() {
   }
 }
 
-function openPlainteModal(id) {
-  const p = plaintesCache.find(x => x.id === id);
-  if (!p) return;
-  openPlainteId = id;
-  const date = new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const auteur = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
-  const momentTxt = p.moment_faits
-    ? new Date(p.moment_faits).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : 'non renseigné';
-
-  document.getElementById('plainte-modal-titre').textContent = p.plaignant_nom + (p.mis_en_cause_nom ? ' contre ' + p.mis_en_cause_nom : '');
-  document.getElementById('plainte-modal-meta').textContent = `Reçue le ${date} par ${auteur} · faits du ${momentTxt}`;
-  document.getElementById('plainte-modal-statut').value = p.statut;
-  document.getElementById('plainte-modal-statut').className = 'statut-select statut-select-' + p.statut;
-  document.getElementById('plainte-modal-plaignant').textContent = p.plaignant_nom + (p.plaignant_grade ? ` (${p.plaignant_grade})` : '');
-  if (Array.isArray(p.accuses) && p.accuses.length > 0) {
-    document.getElementById('plainte-modal-accuse').textContent = p.accuses.map(a => `${a.nom} (${a.grade})`).join(', ');
-  } else {
-    document.getElementById('plainte-modal-accuse').textContent = p.mis_en_cause_nom
-      ? p.mis_en_cause_nom + (p.accuse_grade ? ` (${p.accuse_grade})` : '')
-      : 'Non renseigné';
+document.getElementById('plaintes-list').addEventListener('click', async (e) => {
+  const delBtn = e.target.closest('.plainte-delete-btn');
+  if (delBtn) {
+    if (!confirm('Supprimer définitivement cette plainte ?')) return;
+    try {
+      await supaDelete('plaintes', `id=eq.${delBtn.dataset.id}`);
+      openPlaintesIds.delete(delBtn.dataset.id);
+      loadPlaintes();
+    } catch (err) { console.error(err); }
+    return;
   }
-  document.getElementById('plainte-modal-motif').textContent = p.motif;
-
-  const articlesLabels = (p.article_ids || [])
-    .map(aid => articlesCache.find(a => a.id === aid))
-    .filter(Boolean)
-    .map(a => `<span class="tag tag-impaye">${escapeHtml(a.code)} — ${escapeHtml(a.libelle)}</span>`).join('');
-  document.getElementById('plainte-modal-articles').innerHTML = articlesLabels || '<span class="infraction-meta">Aucun article renseigné</span>';
-
-  const photoWrap = document.getElementById('plainte-modal-photo-wrap');
-  if (p.photo_data) {
-    photoWrap.innerHTML = `<h4>Photo</h4><img src="${p.photo_data}" class="dossier-photo-thumb plainte-photo-view" style="width:110px;height:90px;cursor:zoom-in;">`;
-    photoWrap.querySelector('.plainte-photo-view').addEventListener('click', () => {
-      document.getElementById('photo-zoom-img').src = p.photo_data;
-      document.getElementById('photo-zoom-overlay').classList.remove('hidden');
-    });
-  } else {
-    photoWrap.innerHTML = '';
+  const photo = e.target.closest('.plainte-photo-view');
+  if (photo) {
+    document.getElementById('photo-zoom-img').src = photo.dataset.photo;
+    document.getElementById('photo-zoom-overlay').classList.remove('hidden');
+    return;
   }
-
-  document.getElementById('plainte-delete-btn').style.display = can('supprimer_infraction') ? 'inline-block' : 'none';
-  document.getElementById('plainte-modal-overlay').classList.remove('hidden');
-}
-
-document.getElementById('plainte-modal-close').addEventListener('click', () => {
-  document.getElementById('plainte-modal-overlay').classList.add('hidden');
-  openPlainteId = null;
+  const row = e.target.closest('.plainte-row');
+  if (row) {
+    const id = row.dataset.id;
+    const detail = document.querySelector(`.plainte-detail[data-detail-for="${id}"]`);
+    if (!detail) return;
+    const willOpen = detail.classList.contains('hidden');
+    detail.classList.toggle('hidden');
+    row.classList.toggle('open', willOpen);
+    if (willOpen) openPlaintesIds.add(id); else openPlaintesIds.delete(id);
+  }
 });
 
-document.getElementById('plainte-modal-statut').addEventListener('change', async (e) => {
-  if (!openPlainteId) return;
-  e.target.className = 'statut-select statut-select-' + e.target.value;
+document.getElementById('plaintes-list').addEventListener('change', async (e) => {
+  const sel = e.target.closest('.plainte-statut-select');
+  if (!sel) return;
+  const id = sel.dataset.id;
+  sel.className = 'statut-select plainte-statut-select statut-select-' + sel.value;
   try {
-    await supaPatch('plaintes', `id=eq.${openPlainteId}`, { statut: e.target.value, updated_at: new Date().toISOString() }, true);
-    loadPlaintes();
-  } catch (err) { console.error(err); }
-});
-
-document.getElementById('plainte-delete-btn').addEventListener('click', async () => {
-  if (!openPlainteId) return;
-  if (!confirm('Supprimer définitivement cette plainte ?')) return;
-  try {
-    await supaDelete('plaintes', `id=eq.${openPlainteId}`);
-    document.getElementById('plainte-modal-overlay').classList.add('hidden');
-    openPlainteId = null;
+    await supaPatch('plaintes', `id=eq.${id}`, { statut: sel.value, updated_at: new Date().toISOString() }, true);
     loadPlaintes();
   } catch (err) { console.error(err); }
 });
