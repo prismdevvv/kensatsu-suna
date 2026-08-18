@@ -124,6 +124,7 @@ create table plaintes (
   mis_en_cause_nom   text,
   accuse_char_key    text,
   accuse_grade       text,
+  accuses            jsonb not null default '[]'::jsonb,
   moment_faits       timestamptz,
   article_ids        uuid[] not null default '{}',
   motif              text not null,

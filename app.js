@@ -397,7 +397,7 @@ function wireNinjaPicker(inputId, resultsId, onSelect) {
 }
 
 let plaignantSelectionne = null;
-let accuseSelectionne = null;
+let accusesSelectionnes = [];
 
 wireNinjaPicker('plainte-plaignant-search', 'plainte-plaignant-results', (c) => {
   plaignantSelectionne = c;
@@ -407,12 +407,25 @@ wireNinjaPicker('plainte-plaignant-search', 'plainte-plaignant-results', (c) => 
   grade.innerHTML = `<div class="ap-row"><span class="ap-label">Grade</span><strong>${escapeHtml(rankLabel(c.rank))}</strong></div>`;
 });
 wireNinjaPicker('plainte-accuse-search', 'plainte-accuse-results', (c) => {
-  accuseSelectionne = c;
-  document.getElementById('plainte-accuse-search').value = c.name;
-  const grade = document.getElementById('plainte-accuse-grade');
-  grade.classList.remove('hidden');
-  grade.innerHTML = `<div class="ap-row"><span class="ap-label">Grade</span><strong>${escapeHtml(rankLabel(c.rank))}</strong></div>`;
+  if (!accusesSelectionnes.find(a => a.charKey === c.charKey)) {
+    accusesSelectionnes.push({ nom: c.name, charKey: c.charKey, grade: rankLabel(c.rank) });
+    renderAccusesSelectionnes();
+  }
+  document.getElementById('plainte-accuse-search').value = '';
 });
+
+function renderAccusesSelectionnes() {
+  const wrap = document.getElementById('plainte-accuses-selected');
+  wrap.innerHTML = accusesSelectionnes.map((a, i) =>
+    `<span class="tag tag-recidive2 plainte-accuse-chip" data-i="${i}" title="Cliquer pour retirer">${escapeHtml(a.nom)} (${escapeHtml(a.grade)}) ✕</span>`
+  ).join('');
+  wrap.querySelectorAll('.plainte-accuse-chip').forEach(el => {
+    el.addEventListener('click', () => {
+      accusesSelectionnes.splice(Number(el.dataset.i), 1);
+      renderAccusesSelectionnes();
+    });
+  });
+}
 
 // --- Faits reprochés (choix multiple d'articles) ---
 let plainteArticlesSelectionnes = [];
@@ -469,11 +482,11 @@ document.getElementById('plainte-photo-wrap').addEventListener('click', () => {
 function resetPlainteForm() {
   document.getElementById('plainte-form').reset();
   plaignantSelectionne = null;
-  accuseSelectionne = null;
+  accusesSelectionnes = [];
   plainteArticlesSelectionnes = [];
   plaintePhotoDataUrl = null;
   document.getElementById('plainte-plaignant-grade').classList.add('hidden');
-  document.getElementById('plainte-accuse-grade').classList.add('hidden');
+  document.getElementById('plainte-accuses-selected').innerHTML = '';
   document.getElementById('plainte-articles-results').classList.add('hidden');
   document.getElementById('plainte-articles-selected').innerHTML = '';
   document.getElementById('plainte-photo-img').classList.add('hidden');
@@ -489,7 +502,6 @@ document.getElementById('plainte-form').addEventListener('submit', async (e) => 
   const motif = document.getElementById('plainte-motif').value.trim();
   if (!plaignantNom || !motif) return;
   const moment = document.getElementById('plainte-moment').value;
-  const accuseNom = document.getElementById('plainte-accuse-search').value.trim();
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
@@ -498,9 +510,8 @@ document.getElementById('plainte-form').addEventListener('submit', async (e) => 
       plaignant_nom: plaignantNom,
       plaignant_char_key: plaignantSelectionne ? plaignantSelectionne.charKey : null,
       plaignant_grade: plaignantSelectionne ? rankLabel(plaignantSelectionne.rank) : null,
-      mis_en_cause_nom: accuseNom || null,
-      accuse_char_key: accuseSelectionne ? accuseSelectionne.charKey : null,
-      accuse_grade: accuseSelectionne ? rankLabel(accuseSelectionne.rank) : null,
+      mis_en_cause_nom: accusesSelectionnes.length ? accusesSelectionnes.map(a => a.nom).join(', ') : null,
+      accuses: accusesSelectionnes,
       moment_faits: moment ? new Date(moment).toISOString() : null,
       article_ids: plainteArticlesSelectionnes.map(a => a.id),
       motif,
@@ -573,9 +584,13 @@ function openPlainteModal(id) {
   document.getElementById('plainte-modal-statut').value = p.statut;
   document.getElementById('plainte-modal-statut').className = 'statut-select statut-select-' + p.statut;
   document.getElementById('plainte-modal-plaignant').textContent = p.plaignant_nom + (p.plaignant_grade ? ` (${p.plaignant_grade})` : '');
-  document.getElementById('plainte-modal-accuse').textContent = p.mis_en_cause_nom
-    ? p.mis_en_cause_nom + (p.accuse_grade ? ` (${p.accuse_grade})` : '')
-    : 'Non renseigné';
+  if (Array.isArray(p.accuses) && p.accuses.length > 0) {
+    document.getElementById('plainte-modal-accuse').textContent = p.accuses.map(a => `${a.nom} (${a.grade})`).join(', ');
+  } else {
+    document.getElementById('plainte-modal-accuse').textContent = p.mis_en_cause_nom
+      ? p.mis_en_cause_nom + (p.accuse_grade ? ` (${p.accuse_grade})` : '')
+      : 'Non renseigné';
+  }
   document.getElementById('plainte-modal-motif').textContent = p.motif;
 
   const articlesLabels = (p.article_ids || [])
