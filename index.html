@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kensatsu de Sunagakure — Police &amp; Parquet</title>
-  <link rel="stylesheet" href="style.css?v=24">
+  <link rel="stylesheet" href="style.css?v=25">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -139,7 +139,12 @@
           <!-- GROUPE PLAINTES -->
           <div class="group-panel" data-group="plaintes">
             <section class="panel-section">
-              <h3 id="plaintes-toggle" class="panel-toggle"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6Z"/><path d="M15 3v3h3"/><path d="M9 12h6M9 15.5h6M9 8.5h3"/></svg> Registre des Plaintes <svg class="panel-toggle-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></h3>
+              <h3><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6Z"/><path d="M15 3v3h3"/><path d="M9 12h6M9 15.5h6M9 8.5h3"/></svg> Registre des Plaintes</h3>
+              <button type="button" id="plaintes-toggle" class="panel-toggle-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Déposer une nouvelle plainte
+                <svg class="panel-toggle-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
               <div id="plaintes-body" class="hidden">
               <p class="info-text">Enregistre une plainte déposée par un ninja, puis suis son traitement.</p>
               <form id="plainte-form" class="form-grid">
@@ -182,7 +187,9 @@
                 <button type="submit" class="btn-primary">Enregistrer la plainte</button>
                 <p id="plainte-status" class="error"></p>
               </form>
-              <div class="form-grid" style="margin-top:4px;">
+              </div>
+              <div class="plaintes-list-head">
+                <span class="plaintes-list-count" id="plaintes-count"></span>
                 <div class="search-filters">
                   <select id="plainte-statut-filtre">
                     <option value="">Tous les statuts</option>
@@ -195,7 +202,6 @@
               </div>
               <div class="list-box">
                 <ul id="plaintes-list" class="dossiers-grid"></ul>
-              </div>
               </div>
             </section>
           </div>
@@ -348,7 +354,7 @@
     <img id="photo-zoom-img" class="photo-zoom-img" alt="Photo agrandie">
   </div>
 
-  <script src="common.js?v=24"></script>
-  <script src="app.js?v=24"></script>
+  <script src="common.js?v=25"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

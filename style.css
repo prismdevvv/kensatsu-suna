@@ -335,22 +335,45 @@ body.dark .statut-select-classee { background-color: rgba(255,255,255,.08); colo
 body.dark .dossier-folder { background: #10161c; border-color: #33424f; }
 body.dark .dossier-folder:hover { border-color: var(--red-seal); background: rgba(179,49,44,.1); }
 
-.panel-toggle { cursor: pointer; display: flex; align-items: center; user-select: none; }
+.panel-toggle-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 18px;
+  padding: 11px 16px; border-radius: 9px; border: 1.5px dashed var(--paper-mid);
+  background: transparent; color: var(--steel-dark); font-family: 'Cinzel', serif;
+  font-weight: 700; font-size: 13px; letter-spacing: .02em; cursor: pointer; transition: all .18s;
+}
+.panel-toggle-btn:hover { border-color: var(--red-seal); color: var(--red-seal); background: rgba(179,49,44,.05); }
 .panel-toggle-chevron { margin-left: auto; color: var(--text-light); transition: transform .18s; flex-shrink: 0; }
-.panel-toggle.open .panel-toggle-chevron { transform: rotate(180deg); }
+.panel-toggle-btn.open .panel-toggle-chevron { transform: rotate(180deg); }
+body.dark .panel-toggle-btn { color: var(--cream); border-color: #33424f; }
+body.dark .panel-toggle-btn:hover { border-color: var(--red-seal); background: rgba(179,49,44,.12); }
+
+.plaintes-list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.plaintes-list-count { font-size: 12.5px; color: var(--text-light); font-weight: 600; }
 
 /* Registre des plaintes — accordéon */
 .plainte-chevron { color: var(--text-light); flex-shrink: 0; transition: transform .18s; }
 .plainte-row.open .plainte-chevron { transform: rotate(180deg); }
 .plainte-row.open { border-color: var(--red-seal); border-left-color: var(--red-seal); background: rgba(179,49,44,.05); }
 .plainte-detail {
-  padding: 14px 16px 16px 16px; margin-top: -6px; margin-bottom: 8px;
+  padding: 16px 18px 18px 18px; margin-top: -6px; margin-bottom: 8px;
   border: 1px solid var(--paper-mid); border-top: none; border-radius: 0 0 10px 10px;
   background: var(--paper); animation: plainte-detail-in .15s ease;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px;
 }
 @keyframes plainte-detail-in { from { opacity: 0; } to { opacity: 1; } }
 body.dark .plainte-detail { background: #0c1116; border-color: #33424f; }
-.plainte-detail select.plainte-statut-select { margin-bottom: 10px; }
+.plainte-detail-meta { grid-column: 1 / -1; font-size: 12px; color: var(--text-light); padding-bottom: 10px; border-bottom: 1px solid rgba(53,65,77,.12); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+body.dark .plainte-detail-meta { border-bottom-color: #2a3742; }
+.plainte-detail-block { min-width: 0; }
+.plainte-detail-block.full { grid-column: 1 / -1; }
+.plainte-detail-label { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+body.dark .plainte-detail-label { color: #e0c268; }
+.plainte-detail-value { font-size: 13.5px; color: var(--steel-dark); line-height: 1.5; }
+body.dark .plainte-detail-value { color: var(--cream); }
+.plainte-detail select.plainte-statut-select { grid-column: 1 / -1; justify-self: start; margin-bottom: 2px; }
+.plainte-detail-photo { grid-column: 1 / -1; }
+.plainte-detail-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; padding-top: 4px; border-top: 1px solid rgba(53,65,77,.12); }
+body.dark .plainte-detail-actions { border-top-color: #2a3742; }
 
 .dossier-gallery { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .dossier-photo-item { position: relative; }

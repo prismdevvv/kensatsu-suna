@@ -549,6 +549,8 @@ async function loadPlaintes() {
     const rows = await supaGet('plaintes', query);
     plaintesCache = rows;
     ul.innerHTML = '';
+    const countEl = document.getElementById('plaintes-count');
+    if (countEl) countEl.textContent = rows.length + (rows.length > 1 ? ' plaintes' : ' plainte');
     if (rows.length === 0) {
       ul.innerHTML = '<li class="list-empty">Aucune plainte enregistrée</li>';
       return;
@@ -573,10 +575,10 @@ async function loadPlaintes() {
         .filter(Boolean)
         .map(a => `<span class="tag tag-impaye">${escapeHtml(a.code)} — ${escapeHtml(a.libelle)}</span>`).join('');
       const photoHtml = p.photo_data
-        ? `<h4>Photo</h4><img src="${p.photo_data}" class="dossier-photo-thumb plainte-photo-view" data-photo="${p.photo_data}" style="width:110px;height:90px;cursor:zoom-in;">`
+        ? `<div class="plainte-detail-block full plainte-detail-photo"><div class="plainte-detail-label">Photo</div><img src="${p.photo_data}" class="dossier-photo-thumb plainte-photo-view" data-photo="${p.photo_data}" style="width:110px;height:90px;cursor:zoom-in;"></div>`
         : '';
       const deleteBtnHtml = can('supprimer_infraction')
-        ? `<button type="button" class="btn-delete-inf plainte-delete-btn" data-id="${p.id}" style="margin-top:0;">Supprimer la plainte</button>`
+        ? `<div class="plainte-detail-actions"><button type="button" class="btn-delete-inf plainte-delete-btn" data-id="${p.id}" style="margin-top:0;">Supprimer la plainte</button></div>`
         : '';
       const isOpen = wasOpen.has(p.id);
 
@@ -596,21 +598,33 @@ async function loadPlaintes() {
       detail.className = 'plainte-detail' + (isOpen ? '' : ' hidden');
       detail.dataset.detailFor = p.id;
       detail.innerHTML = `
-        <p class="info-text" style="margin-bottom:8px;">Reçue le ${date} par ${escapeHtml(auteur)} · faits du ${momentTxt}</p>
+        <div class="plainte-detail-meta">
+          <span>Reçue le ${date} par ${escapeHtml(auteur)}</span>
+          <span>·</span>
+          <span>Faits du ${momentTxt}</span>
+        </div>
         <select class="statut-select plainte-statut-select statut-select-${p.statut}" data-id="${p.id}">
           <option value="nouvelle" ${p.statut === 'nouvelle' ? 'selected' : ''}>Nouvelle</option>
           <option value="en_cours" ${p.statut === 'en_cours' ? 'selected' : ''}>En cours</option>
           <option value="traitee" ${p.statut === 'traitee' ? 'selected' : ''}>Traitée</option>
           <option value="classee" ${p.statut === 'classee' ? 'selected' : ''}>Classée</option>
         </select>
-        <h4>Plaignant</h4>
-        <p class="info-text" style="margin-bottom:8px;">${escapeHtml(p.plaignant_nom)}${p.plaignant_grade ? ` (${escapeHtml(p.plaignant_grade)})` : ''}</p>
-        <h4>Accusé(s)</h4>
-        <p class="info-text" style="margin-bottom:8px;">${escapeHtml(accuseTxt)}</p>
-        <h4>Faits reprochés</h4>
-        <div class="infraction-badges" style="margin-bottom:8px;">${articlesLabels || '<span class="infraction-meta">Aucun article renseigné</span>'}</div>
-        <h4>Résumé des faits</h4>
-        <p class="info-text" style="margin-bottom:8px;">${escapeHtml(p.motif)}</p>
+        <div class="plainte-detail-block">
+          <div class="plainte-detail-label">Plaignant</div>
+          <div class="plainte-detail-value">${escapeHtml(p.plaignant_nom)}${p.plaignant_grade ? ` <span class="infraction-meta">(${escapeHtml(p.plaignant_grade)})</span>` : ''}</div>
+        </div>
+        <div class="plainte-detail-block">
+          <div class="plainte-detail-label">Accusé(s)</div>
+          <div class="plainte-detail-value">${escapeHtml(accuseTxt)}</div>
+        </div>
+        <div class="plainte-detail-block full">
+          <div class="plainte-detail-label">Faits reprochés</div>
+          <div class="infraction-badges">${articlesLabels || '<span class="infraction-meta">Aucun article renseigné</span>'}</div>
+        </div>
+        <div class="plainte-detail-block full">
+          <div class="plainte-detail-label">Résumé des faits</div>
+          <div class="plainte-detail-value">${escapeHtml(p.motif)}</div>
+        </div>
         ${photoHtml}
         ${deleteBtnHtml}`;
       ul.appendChild(detail);
