@@ -519,6 +519,9 @@ document.getElementById('plainte-form').addEventListener('submit', async (e) => 
 
 document.getElementById('plainte-statut-filtre').addEventListener('change', () => loadPlaintes());
 
+let plaintesCache = [];
+let openPlainteId = null;
+
 async function loadPlaintes() {
   const ul = document.getElementById('plaintes-list');
   if (!ul) return;
@@ -528,6 +531,7 @@ async function loadPlaintes() {
     let query = 'select=*,agents(nom,prenom)&order=created_at.desc';
     if (statut) query += `&statut=eq.${statut}`;
     const rows = await supaGet('plaintes', query);
+    plaintesCache = rows;
     ul.innerHTML = '';
     if (rows.length === 0) {
       ul.innerHTML = '<li class="list-empty">Aucune plainte enregistrée</li>';
@@ -536,55 +540,16 @@ async function loadPlaintes() {
     rows.forEach(p => {
       const li = document.createElement('li');
       const date = new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const auteur = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
-      const statutOptions = Object.entries(PLAINTE_STATUT_LABELS)
-        .map(([v, l]) => `<option value="${v}"${p.statut === v ? ' selected' : ''}>${l}</option>`).join('');
-      const articlesLabels = (p.article_ids || [])
-        .map(id => articlesCache.find(a => a.id === id))
-        .filter(Boolean)
-        .map(a => `<span class="tag tag-impaye">${escapeHtml(a.code)}</span>`).join('');
-      const momentTxt = p.moment_faits
-        ? new Date(p.moment_faits).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-        : null;
-      const photoHtml = p.photo_data ? `<img class="dossier-photo-thumb plainte-photo-view" src="${p.photo_data}" alt="Preuve" style="margin-top:6px;">` : '';
+      const titre = p.plaignant_nom + (p.mis_en_cause_nom ? ' contre ' + p.mis_en_cause_nom : '');
+      li.className = 'dossier-folder';
       li.innerHTML = `
-        <div class="infraction-item">
-          <div class="infraction-left">
-            <div class="infraction-titre">${escapeHtml(p.plaignant_nom)}${p.plaignant_grade ? ' (' + escapeHtml(p.plaignant_grade) + ')' : ''}${p.mis_en_cause_nom ? ' contre ' + escapeHtml(p.mis_en_cause_nom) : ''}${p.accuse_grade ? ' (' + escapeHtml(p.accuse_grade) + ')' : ''}</div>
-            <div class="infraction-meta">${date} · reçue par ${escapeHtml(auteur)}${momentTxt ? ' · faits du ' + momentTxt : ''}</div>
-            <div class="infraction-meta">${escapeHtml(p.motif)}</div>
-            ${articlesLabels ? `<div class="infraction-badges">${articlesLabels}</div>` : ''}
-            <div class="infraction-badges"><span class="tag plainte-statut-tag ${p.statut}">${PLAINTE_STATUT_LABELS[p.statut]}</span></div>
-            ${photoHtml}
-          </div>
-          <div style="text-align:right;flex-shrink:0;">
-            <select class="plainte-statut-select" data-id="${p.id}">${statutOptions}</select>
-            ${can('supprimer_infraction') ? `<button class="btn-delete-inf" data-id="${p.id}">Supprimer</button>` : ''}
-          </div>
-        </div>`;
-      li.querySelector('.plainte-statut-select').addEventListener('change', async (ev) => {
-        try {
-          await supaPatch('plaintes', `id=eq.${p.id}`, { statut: ev.target.value, updated_at: new Date().toISOString() }, true);
-          loadPlaintes();
-        } catch (err) { console.error(err); }
-      });
-      const photoImg = li.querySelector('.plainte-photo-view');
-      if (photoImg) {
-        photoImg.addEventListener('click', () => {
-          document.getElementById('photo-zoom-img').src = p.photo_data;
-          document.getElementById('photo-zoom-overlay').classList.remove('hidden');
-        });
-      }
-      const delBtn = li.querySelector('.btn-delete-inf');
-      if (delBtn) {
-        delBtn.addEventListener('click', async () => {
-          if (!confirm('Supprimer définitivement cette plainte ?')) return;
-          try {
-            await supaDelete('plaintes', `id=eq.${p.id}`);
-            loadPlaintes();
-          } catch (err) { console.error(err); }
-        });
-      }
+        <span class="dossier-folder-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6Z"/><path d="M15 3v3h3"/><path d="M9 12h6M9 15.5h6M9 8.5h3"/></svg></span>
+        <div class="dossier-folder-info">
+          <div class="infraction-titre">${escapeHtml(titre)}</div>
+          <div class="infraction-meta">${date}</div>
+        </div>
+        <span class="statut-pill statut-${p.statut}"><span class="statut-dot"></span>${PLAINTE_STATUT_LABELS[p.statut]}</span>`;
+      li.addEventListener('click', () => openPlainteModal(p.id));
       ul.appendChild(li);
     });
   } catch (e) {
@@ -592,6 +557,72 @@ async function loadPlaintes() {
     ul.innerHTML = '<li class="list-empty">Erreur de chargement des plaintes</li>';
   }
 }
+
+function openPlainteModal(id) {
+  const p = plaintesCache.find(x => x.id === id);
+  if (!p) return;
+  openPlainteId = id;
+  const date = new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const auteur = p.agents ? `${p.agents.prenom} ${p.agents.nom}` : 'agent supprimé';
+  const momentTxt = p.moment_faits
+    ? new Date(p.moment_faits).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : 'non renseigné';
+
+  document.getElementById('plainte-modal-titre').textContent = p.plaignant_nom + (p.mis_en_cause_nom ? ' contre ' + p.mis_en_cause_nom : '');
+  document.getElementById('plainte-modal-meta').textContent = `Reçue le ${date} par ${auteur} · faits du ${momentTxt}`;
+  document.getElementById('plainte-modal-statut').value = p.statut;
+  document.getElementById('plainte-modal-statut').className = 'statut-select statut-select-' + p.statut;
+  document.getElementById('plainte-modal-plaignant').textContent = p.plaignant_nom + (p.plaignant_grade ? ` (${p.plaignant_grade})` : '');
+  document.getElementById('plainte-modal-accuse').textContent = p.mis_en_cause_nom
+    ? p.mis_en_cause_nom + (p.accuse_grade ? ` (${p.accuse_grade})` : '')
+    : 'Non renseigné';
+  document.getElementById('plainte-modal-motif').textContent = p.motif;
+
+  const articlesLabels = (p.article_ids || [])
+    .map(aid => articlesCache.find(a => a.id === aid))
+    .filter(Boolean)
+    .map(a => `<span class="tag tag-impaye">${escapeHtml(a.code)} — ${escapeHtml(a.libelle)}</span>`).join('');
+  document.getElementById('plainte-modal-articles').innerHTML = articlesLabels || '<span class="infraction-meta">Aucun article renseigné</span>';
+
+  const photoWrap = document.getElementById('plainte-modal-photo-wrap');
+  if (p.photo_data) {
+    photoWrap.innerHTML = `<h4>Photo</h4><img src="${p.photo_data}" class="dossier-photo-thumb plainte-photo-view" style="width:110px;height:90px;cursor:zoom-in;">`;
+    photoWrap.querySelector('.plainte-photo-view').addEventListener('click', () => {
+      document.getElementById('photo-zoom-img').src = p.photo_data;
+      document.getElementById('photo-zoom-overlay').classList.remove('hidden');
+    });
+  } else {
+    photoWrap.innerHTML = '';
+  }
+
+  document.getElementById('plainte-delete-btn').style.display = can('supprimer_infraction') ? 'inline-block' : 'none';
+  document.getElementById('plainte-modal-overlay').classList.remove('hidden');
+}
+
+document.getElementById('plainte-modal-close').addEventListener('click', () => {
+  document.getElementById('plainte-modal-overlay').classList.add('hidden');
+  openPlainteId = null;
+});
+
+document.getElementById('plainte-modal-statut').addEventListener('change', async (e) => {
+  if (!openPlainteId) return;
+  e.target.className = 'statut-select statut-select-' + e.target.value;
+  try {
+    await supaPatch('plaintes', `id=eq.${openPlainteId}`, { statut: e.target.value, updated_at: new Date().toISOString() }, true);
+    loadPlaintes();
+  } catch (err) { console.error(err); }
+});
+
+document.getElementById('plainte-delete-btn').addEventListener('click', async () => {
+  if (!openPlainteId) return;
+  if (!confirm('Supprimer définitivement cette plainte ?')) return;
+  try {
+    await supaDelete('plaintes', `id=eq.${openPlainteId}`);
+    document.getElementById('plainte-modal-overlay').classList.add('hidden');
+    openPlainteId = null;
+    loadPlaintes();
+  } catch (err) { console.error(err); }
+});
 
 // --- Restauration de session ---
 (function restoreSession() {

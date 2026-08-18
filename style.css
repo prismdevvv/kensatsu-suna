@@ -288,6 +288,36 @@ body.dark .poste-badge.actif { background: rgba(46,125,50,.2); color: #7fd6a0; }
 .plainte-statut-tag.classee { background: rgba(0,0,0,.08); border: 1px solid rgba(0,0,0,.2); color: var(--text-light); }
 body.dark .plainte-statut-tag.classee { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #9fb0bd; }
 
+/* Pastilles de statut (plaintes / dossiers) — pochette + fiche */
+.statut-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 5px 13px; border-radius: 20px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .03em; text-transform: uppercase; box-shadow: var(--shadow-sm);
+}
+.statut-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.statut-pill.statut-nouvelle { background: rgba(75,126,168,.15); border: 1px solid rgba(75,126,168,.4); color: #2f5f80; }
+.statut-pill.statut-en_cours { background: rgba(184,146,42,.15); border: 1px solid rgba(184,146,42,.4); color: #8a6c1a; }
+.statut-pill.statut-traitee { background: rgba(46,125,50,.15); border: 1px solid rgba(46,125,50,.4); color: var(--green); }
+.statut-pill.statut-classee { background: rgba(0,0,0,.08); border: 1px solid rgba(0,0,0,.2); color: var(--text-light); }
+body.dark .statut-pill.statut-nouvelle { color: #8fc0e6; }
+body.dark .statut-pill.statut-en_cours { color: #e0c268; }
+body.dark .statut-pill.statut-traitee { color: #7fd6a0; }
+body.dark .statut-pill.statut-classee { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #9fb0bd; }
+
+.statut-select {
+  padding: 8px 34px 8px 15px; border-radius: 20px; font-family: 'Cinzel', serif; font-weight: 700;
+  font-size: 12px; letter-spacing: .02em; cursor: pointer; transition: all .2s;
+  border: 1.5px solid rgba(75,126,168,.4); background-color: rgba(75,126,168,.12); color: #2f5f80;
+}
+.statut-select-nouvelle { border-color: rgba(75,126,168,.4); background-color: rgba(75,126,168,.12); color: #2f5f80; }
+.statut-select-en_cours { border-color: rgba(184,146,42,.4); background-color: rgba(184,146,42,.12); color: #8a6c1a; }
+.statut-select-traitee { border-color: rgba(46,125,50,.4); background-color: rgba(46,125,50,.12); color: var(--green); }
+.statut-select-classee { border-color: rgba(0,0,0,.2); background-color: rgba(0,0,0,.06); color: var(--text-light); }
+body.dark .statut-select-nouvelle { color: #8fc0e6; }
+body.dark .statut-select-en_cours { color: #e0c268; }
+body.dark .statut-select-traitee { color: #7fd6a0; }
+body.dark .statut-select-classee { background-color: rgba(255,255,255,.08); color: #9fb0bd; }
+
 .dossiers-grid { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .dossier-folder {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px;
