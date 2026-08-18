@@ -359,6 +359,11 @@ async function loadServiceList() {
 // ── Plaintes ──
 const PLAINTE_STATUT_LABELS = { nouvelle: 'Nouvelle', en_cours: 'En cours', traitee: 'Traitée', classee: 'Classée' };
 
+document.getElementById('plaintes-toggle').addEventListener('click', () => {
+  document.getElementById('plaintes-body').classList.toggle('hidden');
+  document.getElementById('plaintes-toggle').classList.toggle('open');
+});
+
 // --- Recherche de ninja réutilisable (plaignant / accusé) ---
 function wireNinjaPicker(inputId, resultsId, onSelect) {
   let timer = null;

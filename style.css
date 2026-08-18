@@ -335,6 +335,10 @@ body.dark .statut-select-classee { background-color: rgba(255,255,255,.08); colo
 body.dark .dossier-folder { background: #10161c; border-color: #33424f; }
 body.dark .dossier-folder:hover { border-color: var(--red-seal); background: rgba(179,49,44,.1); }
 
+.panel-toggle { cursor: pointer; display: flex; align-items: center; user-select: none; }
+.panel-toggle-chevron { margin-left: auto; color: var(--text-light); transition: transform .18s; flex-shrink: 0; }
+.panel-toggle.open .panel-toggle-chevron { transform: rotate(180deg); }
+
 /* Registre des plaintes — accordéon */
 .plainte-chevron { color: var(--text-light); flex-shrink: 0; transition: transform .18s; }
 .plainte-row.open .plainte-chevron { transform: rotate(180deg); }
